@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PINDAVAI - Motorista V10.0</title>
+    <title>PINDAVAI - Motorista V11.0</title>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
     <style>
@@ -18,7 +18,9 @@
         .btn-blue { background: var(--blue); color: white; }
         .btn-orange { background: var(--orange); color: white; }
         input { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 10px; box-sizing: border-box; }
-        .pay-badge { display: inline-block; padding: 5px 10px; border-radius: 5px; background: #eee; font-weight: bold; margin-bottom: 10px; }
+        .status-badge { font-weight: bold; padding: 5px 15px; border-radius: 20px; margin-bottom: 15px; display: inline-block; }
+        .status-off { background: #ffebee; color: var(--danger); }
+        .status-on { background: #e8f5e9; color: var(--success); }
     </style>
 </head>
 <body>
@@ -35,27 +37,28 @@
 
     <div id="m-status" class="screen">
         <div class="card">
-            <h3 id="nome-m">Olá!</h3>
-            <p id="txt-status">Status: Offline</p>
+            <h2 id="nome-m" style="margin-bottom: 5px;">Adriano</h2>
+            <div id="badge-status" class="status-badge status-off">Status: Offline</div>
+            
             <button id="btn-toggle" class="btn btn-yellow" onclick="toggleOnline()">FICAR ONLINE</button>
-            <button class="btn btn-outline" onclick="logout()" style="margin-top:20px; border:none; background:none; color:#999;">Sair da Conta</button>
+            <button class="btn btn-outline" onclick="logout()" style="margin-top:30px; border:none; background:none; color:#999; cursor:pointer;">Sair da Conta</button>
         </div>
     </div>
 
     <div id="m-corrida" class="screen">
         <div class="card">
-            <h4 id="fase-titulo" style="color: var(--orange);">EM ATENDIMENTO</h4>
-            <div id="info-viagem" style="text-align:left; font-size:14px; margin-bottom:10px;"></div>
-            <div id="metodo-pagamento" class="pay-badge">---</div>
+            <h4 id="fase-titulo" style="color: var(--orange); margin-top:0;">BUSCANDO PASSAGEIRO</h4>
+            <div id="info-viagem" style="text-align:left; font-size:14px; margin-bottom:10px; background:#f9f9f9; padding:10px; border-radius:10px;"></div>
             
-            <button id="btn-gps-busca" class="btn btn-orange" onclick="abrirNavegador('origem')">🛰️ ABRIR GPS ATÉ PASSAGEIRO</button>
-            <button id="btn-gps-destino" class="btn btn-blue" style="display:none;" onclick="abrirNavegador('destino')">🛰️ ABRIR GPS ATÉ DESTINO</button>
+            <button id="btn-gps-busca" class="btn btn-orange" onclick="abrirNavegador('origem')">🛰️ ABRIR GPS (MAPS)</button>
+            <button id="btn-gps-destino" class="btn btn-blue" style="display:none;" onclick="abrirNavegador('destino')">🛰️ ABRIR GPS (MAPS)</button>
 
             <hr style="margin:15px 0; border:0; border-top:1px solid #eee;">
             <button id="btn-acao-corrida" class="btn btn-yellow" onclick="proximaFase()">PASSAGEIRO EMBARCOU</button>
             
-            <div id="area-finalizar" style="display:none; background:#e7f9ed; padding:10px; border-radius:10px; margin-top:10px;">
-                <b style="font-size:22px; color:#28a745;">R$ <span id="val-total">0.00</span></b>
+            <div id="area-finalizar" style="display:none; background:#e7f9ed; padding:15px; border-radius:10px; margin-top:10px;">
+                <small>VALOR A RECEBER:</small><br>
+                <b style="font-size:24px; color:#28a745;">R$ <span id="val-total">0.00</span></b>
                 <button class="btn btn-yellow" onclick="finalizarCorrida()">RECEBIDO / FINALIZAR</button>
             </div>
         </div>
@@ -66,16 +69,13 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    let motorista, idCorrida, isOnline = false, watchID = null;
+    let motorista, idCorrida, isOnline = false;
     let dadosCorrida = { origem: "", destino: "", valor: "" };
 
-    // VERIFICAÇÃO IMEDIATA AO ABRIR
     window.onload = () => {
         const emailSalvo = localStorage.getItem('pindavai_email');
         const senhaSalva = localStorage.getItem('pindavai_senha');
-        if(emailSalvo && senhaSalva) {
-            autoLogin(emailSalvo, senhaSalva);
-        }
+        if(emailSalvo && senhaSalva) autoLogin(emailSalvo, senhaSalva);
     };
 
     function autoLogin(email, senha) {
@@ -105,40 +105,27 @@
         });
     }
 
-    function fazerLogin() {
-        const email = document.getElementById('l-email').value;
-        const senha = document.getElementById('l-senha').value;
-        localStorage.setItem('pindavai_email', email);
-        localStorage.setItem('pindavai_senha', senha);
-        autoLogin(email, senha);
-    }
-
-    function logout() {
-        localStorage.clear();
-        location.reload();
-    }
-
-    function mostrarTela(id) {
-        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-        document.getElementById(id).classList.add('active');
-    }
-
     function toggleOnline() {
         isOnline = !isOnline;
         const btn = document.getElementById('btn-toggle');
+        const badge = document.getElementById('badge-status');
+
         if(isOnline) {
             btn.innerText = "FICAR OFFLINE"; btn.className = "btn btn-red";
+            badge.innerText = "Status: Online"; badge.className = "status-badge status-on";
+            
             db.ref('corridas_abertas').on('value', snap => {
                 if(!isOnline || idCorrida) return;
                 snap.forEach(item => {
                     const c = item.val();
                     if(c.status === "Aguardando") {
-                        if(confirm("NOVA CORRIDA!\n\nOrigem: " + c.origem)) aceitar(item.key, c);
+                        if(confirm("🚨 NOVA CORRIDA!\n\nOrigem: " + c.origem)) aceitar(item.key, c);
                     }
                 });
             });
         } else {
             btn.innerText = "FICAR ONLINE"; btn.className = "btn btn-yellow";
+            badge.innerText = "Status: Offline"; badge.className = "status-badge status-off";
             db.ref('corridas_abertas').off();
         }
     }
@@ -153,13 +140,13 @@
     function montarTelaCorrida(dados) {
         dadosCorrida = dados;
         document.getElementById('val-total').innerText = dados.valor;
-        document.getElementById('metodo-pagamento').innerText = "Pagamento: " + dados.pagamento;
-        document.getElementById('info-viagem').innerHTML = `<b>Passageiro:</b> ${dados.cliente}<br><b>Origem:</b> ${dados.origem}<br><b>Destino:</b> ${dados.destino}`;
+        document.getElementById('info-viagem').innerHTML = `<b>Passageiro:</b> ${dados.cliente}<br><b>Origem:</b> ${dados.origem}<br><b>Destino:</b> ${dados.destino}<br><b>Pagamento:</b> ${dados.pagamento}`;
         
         if(dados.status === "Em Viagem") {
             proximaFase(true);
         } else {
             document.getElementById('fase-titulo').innerText = "BUSCANDO PASSAGEIRO";
+            document.getElementById('fase-titulo').style.color = "var(--orange)";
             document.getElementById('btn-gps-busca').style.display = "block";
             document.getElementById('btn-gps-destino').style.display = "none";
             document.getElementById('btn-acao-corrida').style.display = "block";
@@ -180,17 +167,30 @@
 
     function abrirNavegador(tipo) {
         const local = (tipo === 'origem') ? dadosCorrida.origem : dadosCorrida.destino;
-        // Link direto que força a abertura do app nativo do Google Maps
-        window.location.href = "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(local);
+        window.location.href = "https://www.google.com/maps/dir/?api=1&destination=" + encodeURIComponent(local);
     }
 
     function finalizarCorrida() {
-        if(confirm("Finalizar e receber?")) {
+        if(confirm("Confirmar recebimento e finalizar?")) {
             db.ref('corridas_abertas/' + idCorrida).update({ status: "Finalizada" }).then(() => {
                 idCorrida = null;
                 mostrarTela('m-status');
             });
         }
+    }
+
+    function fazerLogin() {
+        const email = document.getElementById('l-email').value;
+        const senha = document.getElementById('l-senha').value;
+        localStorage.setItem('pindavai_email', email);
+        localStorage.setItem('pindavai_senha', senha);
+        autoLogin(email, senha);
+    }
+
+    function logout() { localStorage.clear(); location.reload(); }
+    function mostrarTela(id) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
     }
 </script>
 </body>
