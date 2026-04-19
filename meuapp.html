@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PINDAVAI - Motorista V8.0</title>
+    <title>PINDAVAI - Motorista V9.0</title>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
     <style>
@@ -52,7 +52,7 @@
             <h3 id="nome-m">Olá!</h3>
             <p id="txt-status">Status: Offline</p>
             <button id="btn-toggle" class="btn btn-yellow" onclick="toggleOnline()">FICAR ONLINE</button>
-            <button class="btn btn-outline" onclick="location.reload()" style="margin-top:20px;">Sair</button>
+            <button class="btn btn-outline" onclick="logout()" style="margin-top:20px;">Sair / Trocar Conta</button>
         </div>
     </div>
 
@@ -61,10 +61,13 @@
             <h4 id="fase-titulo" style="color: var(--orange);">INDO BUSCAR PASSAGEIRO</h4>
             <div id="info-viagem" style="text-align:left; font-size:14px; margin-bottom:10px;"></div>
             <div id="metodo-pagamento" class="pay-badge">---</div>
-            <button id="btn-gps-busca" class="btn btn-orange" onclick="abrirNavegador('origem')">🛰️ NAVEGAR ATÉ PASSAGEIRO</button>
-            <button id="btn-gps-destino" class="btn btn-blue" style="display:none;" onclick="abrirNavegador('destino')">🛰️ NAVEGAR ATÉ DESTINO</button>
+            
+            <button id="btn-gps-busca" class="btn btn-orange" onclick="abrirNavegador('origem')">🛰️ ABRIR GPS (BUSCAR)</button>
+            <button id="btn-gps-destino" class="btn btn-blue" style="display:none;" onclick="abrirNavegador('destino')">🛰️ ABRIR GPS (DESTINO)</button>
+
             <hr style="margin:15px 0; border:0; border-top:1px solid #eee;">
             <button id="btn-acao-corrida" class="btn btn-yellow" onclick="proximaFase()">PASSAGEIRO EMBARCOU</button>
+            
             <div id="area-finalizar" style="display:none; background:#e7f9ed; padding:10px; border-radius:10px; margin-top:10px;">
                 <small>VALOR A COBRAR:</small><br>
                 <b style="font-size:22px; color:#28a745;">R$ <span id="val-total">0.00</span></b>
@@ -78,13 +81,28 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    // SISTEMA DE ALERTA: Som Irritante + Loop Forçado
     const somAlerta = new Audio('https://raw.githubusercontent.com/rafael-pinto/sons/master/alarme.mp3');
     somAlerta.loop = true;
-    somAlerta.volume = 1.0;
 
     let motorista, idCorrida, isOnline = false, watchID = null;
     let dadosCorrida = { origem: "", destino: "", valor: "" };
+
+    // --- SISTEMA DE PERSISTÊNCIA (RECUPERAR LOGIN E CORRIDA) ---
+    window.onload = () => {
+        const salvo = localStorage.getItem('motorista_pindavai');
+        if(salvo) {
+            motorista = JSON.parse(salvo);
+            document.getElementById('nome-m').innerText = motorista.nome;
+            
+            // Verifica se havia uma corrida salva
+            const corridaSalva = localStorage.getItem('id_corrida_ativa');
+            if(corridaSalva) {
+                recuperarCorrida(corridaSalva);
+            } else {
+                mostrarTela('m-status');
+            }
+        }
+    };
 
     function mostrarTela(id) {
         document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -92,41 +110,32 @@
     }
 
     function fazerLogin() {
-        // Tenta "acordar" o áudio no primeiro clique
-        somAlerta.play().then(() => somAlerta.pause()).catch(e => {});
-        
-        const chave = document.getElementById('l-email').value.replace(/\./g, '_');
+        const email = document.getElementById('l-email').value;
+        const senha = document.getElementById('l-senha').value;
+        const chave = email.replace(/\./g, '_');
+
         db.ref('usuarios_motoristas/' + chave).once('value', snap => {
             const d = snap.val();
-            if(d && d.senha === document.getElementById('l-senha').value) {
+            if(d && d.senha === senha) {
                 motorista = d; motorista.chave = chave;
+                localStorage.setItem('motorista_pindavai', JSON.stringify(motorista));
                 document.getElementById('nome-m').innerText = d.nome;
                 mostrarTela('m-status');
-            } else alert("Erro no login!");
+            } else alert("Dados incorretos!");
         });
     }
 
-    function cadastrarMotorista() {
-        const chave = document.getElementById('r-email').value.replace(/\./g, '_');
-        db.ref('usuarios_motoristas/' + chave).set({
-            nome: document.getElementById('r-nome').value,
-            veiculo: document.getElementById('r-veiculo').value,
-            senha: document.getElementById('r-senha').value,
-            status: "Ativo", isOnline: false
-        }).then(() => { alert("Cadastro realizado!"); mostrarTela('m-login'); });
+    function logout() {
+        localStorage.clear();
+        location.reload();
     }
 
     function toggleOnline() {
         isOnline = !isOnline;
         const btn = document.getElementById('btn-toggle');
-        
         if(isOnline) {
-            // "Limpa" o áudio e testa vibração
             somAlerta.play().then(() => somAlerta.pause()).catch(e => {});
-            if (navigator.vibrate) navigator.vibrate(200);
-
             btn.innerText = "FICAR OFFLINE"; btn.className = "btn btn-red";
-            document.getElementById('txt-status').innerText = "Buscando passageiros...";
             
             watchID = navigator.geolocation.watchPosition(pos => {
                 db.ref('usuarios_motoristas/' + motorista.chave).update({
@@ -135,23 +144,15 @@
             }, null, {enableHighAccuracy: true});
 
             db.ref('corridas_abertas').on('value', snap => {
-                if(!isOnline) return;
+                if(!isOnline || idCorrida) return;
                 snap.forEach(item => {
                     const c = item.val();
-                    if(c.status === "Aguardando" && !idCorrida) {
-                        
-                        // DISPARA ALERTA SONORO E VIBRAÇÃO
-                        somAlerta.play().catch(e => console.log("Erro som:", e));
-                        if (navigator.vibrate) navigator.vibrate([500, 300, 500, 300, 500]);
-
-                        if(confirm(`🚨 NOVA CORRIDA!\n\nOrigem: ${c.origem}\nDestino: ${c.destino}\nValor: R$ ${c.valor}`)) {
-                            somAlerta.pause(); somAlerta.currentTime = 0;
-                            if (navigator.vibrate) navigator.vibrate(0);
+                    if(c.status === "Aguardando") {
+                        somAlerta.play();
+                        if(confirm(`NOVA CORRIDA!\n\nOrigem: ${c.origem}\nDestino: ${c.destino}`)) {
+                            somAlerta.pause();
                             aceitar(item.key, c);
-                        } else { 
-                            somAlerta.pause(); somAlerta.currentTime = 0;
-                            if (navigator.vibrate) navigator.vibrate(0);
-                        }
+                        } else { somAlerta.pause(); }
                     }
                 });
             });
@@ -159,35 +160,54 @@
             btn.innerText = "FICAR ONLINE"; btn.className = "btn btn-yellow";
             db.ref('usuarios_motoristas/' + motorista.chave).update({ isOnline: false });
             db.ref('corridas_abertas').off();
-            somAlerta.pause();
-            if (navigator.vibrate) navigator.vibrate(0);
             if(watchID) navigator.geolocation.clearWatch(watchID);
         }
     }
 
     function aceitar(id, dados) {
         idCorrida = id;
-        dadosCorrida = dados;
+        localStorage.setItem('id_corrida_ativa', id); // Salva a corrida no celular
         db.ref('corridas_abertas/' + id).update({
             status: "Aceita", idMotorista: motorista.chave, nomeMotorista: motorista.nome
-        }).then(() => {
-            document.getElementById('val-total').innerText = dados.valor;
-            document.getElementById('metodo-pagamento').innerText = "Pagamento: " + dados.pagamento;
-            document.getElementById('info-viagem').innerHTML = `<b>Passageiro:</b> ${dados.cliente}<br><b>Origem:</b> ${dados.origem}<br><b>Destino:</b> ${dados.destino}`;
-            
-            // RESETAR BOTÕES DE NAVEGAÇÃO
+        }).then(() => montarTelaCorrida(dados));
+    }
+
+    function recuperarCorrida(id) {
+        db.ref('corridas_abertas/' + id).once('value', snap => {
+            const d = snap.val();
+            if(d && d.status !== "Finalizada") {
+                idCorrida = id;
+                montarTelaCorrida(d);
+            } else {
+                localStorage.removeItem('id_corrida_ativa');
+                mostrarTela('m-status');
+            }
+        });
+    }
+
+    function montarTelaCorrida(dados) {
+        dadosCorrida = dados;
+        document.getElementById('val-total').innerText = dados.valor;
+        document.getElementById('metodo-pagamento').innerText = "Pagamento: " + dados.pagamento;
+        document.getElementById('info-viagem').innerHTML = `<b>Passageiro:</b> ${dados.cliente}<br><b>Origem:</b> ${dados.origem}<br><b>Destino:</b> ${dados.destino}`;
+        
+        // Se já estava em viagem, mantém o estado
+        if(dados.status === "Em Viagem") {
+            proximaFase(true);
+        } else {
             document.getElementById('fase-titulo').innerText = "INDO BUSCAR PASSAGEIRO";
-            document.getElementById('fase-titulo').style.color = "var(--orange)";
             document.getElementById('btn-gps-busca').style.display = "block";
             document.getElementById('btn-gps-destino').style.display = "none";
             document.getElementById('btn-acao-corrida').style.display = "block";
             document.getElementById('area-finalizar').style.display = "none";
-            
-            mostrarTela('m-corrida');
-        });
+        }
+        mostrarTela('m-corrida');
     }
 
-    function proximaFase() {
+    function proximaFase(recuperando = false) {
+        if(!recuperando) {
+            db.ref('corridas_abertas/' + idCorrida).update({ status: "Em Viagem" });
+        }
         document.getElementById('fase-titulo').innerText = "EM VIAGEM COM PASSAGEIRO";
         document.getElementById('fase-titulo').style.color = "var(--blue)";
         document.getElementById('btn-gps-busca').style.display = "none";
@@ -197,15 +217,15 @@
     }
 
     function abrirNavegador(tipo) {
-        const endereco = (tipo === 'origem') ? dadosCorrida.origem : dadosCorrida.destino;
-        if(!endereco) return;
-        // Abre direto o Maps no celular
-        window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(endereco)}`, '_blank');
+        const local = (tipo === 'origem') ? dadosCorrida.origem : dadosCorrida.destino;
+        // Abre o Maps em nova aba para não fechar o app
+        window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(local)}`, '_blank');
     }
 
     function finalizarCorrida() {
-        if(confirm("Confirmar fim da viagem e recebimento?")) {
+        if(confirm("Finalizar viagem?")) {
             db.ref('corridas_abertas/' + idCorrida).update({ status: "Finalizada" }).then(() => {
+                localStorage.removeItem('id_corrida_ativa');
                 idCorrida = null;
                 mostrarTela('m-status');
             });
