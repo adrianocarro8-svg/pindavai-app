@@ -3,98 +3,81 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PINDAVAI SLIM</title>
+    <title>PINDAVAI ULTRA SLIM</title>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        :root { --primary: #ffcc00; --bg: #000; --card-bg: #1a1a1a; --text: #fff; --danger: #ff4444; --success: #00c851; --blue: #33b5e5; }
+        :root { --primary: #ffcc00; --bg: #000; --card-bg: #141414; --text: #fff; --blue: #00a8ff; --success: #2ecc71; }
         body { font-family: 'Segoe UI', sans-serif; margin: 0; background: var(--bg); color: var(--text); overflow: hidden; }
-
-        .screen { display: none; height: 100vh; width: 100%; flex-direction: column; padding: 10px; box-sizing: border-box; }
+        
+        .screen { display: none; height: 100vh; flex-direction: column; padding: 8px; box-sizing: border-box; }
         .active { display: flex; }
 
-        .header-mini { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
-        .logo-box { background: var(--primary); color:#000; padding: 5px 10px; border-radius: 8px; font-weight: 900; font-size: 14px; }
+        /* Cabeçalho Minúsculo */
+        .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; font-size: 12px; }
+        .logo { background: var(--primary); color: #000; padding: 2px 8px; border-radius: 4px; font-weight: 900; }
 
-        .card { 
-            background: var(--card-bg); padding: 12px; border-radius: 15px; 
-            text-align: center; border: 1px solid #333; width: 100%; box-sizing: border-box;
-        }
+        .card { background: var(--card-bg); padding: 10px; border-radius: 12px; border: 1px solid #222; width: 100%; box-sizing: border-box; }
 
-        .badge { padding: 3px 10px; border-radius: 50px; font-size: 10px; font-weight: bold; }
-        .online-glow { background: rgba(0, 200, 81, 0.1); color: var(--success); border: 1px solid var(--success); }
-        .offline-glow { background: rgba(255, 68, 68, 0.1); color: var(--danger); border: 1px solid var(--danger); }
-
+        /* Botões Compactos para caber na tela */
         .btn { 
-            width: 100%; padding: 12px; border: none; border-radius: 10px; 
-            font-weight: bold; font-size: 14px; margin-top: 8px;
+            width: 100%; padding: 12px; border: none; border-radius: 8px; 
+            font-weight: bold; font-size: 14px; margin-top: 6px;
             display: flex; align-items: center; justify-content: center; gap: 8px;
+            text-transform: uppercase;
         }
         .btn-main { background: var(--primary); color: #000; }
-        .btn-stop { background: var(--danger); color: #fff; }
         .btn-nav { background: var(--blue); color: #fff; }
-        
-        input { 
-            width: 100%; padding: 10px; margin: 5px 0; 
-            background: #222; border: 1px solid #444; border-radius: 8px; color: white;
-        }
+        .btn-danger { background: #e74c3c; color: #fff; font-size: 11px; padding: 8px; }
 
-        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 8px 0; }
-        .info-box { background: #222; padding: 8px; border-radius: 10px; text-align: left; border-left: 3px solid var(--primary); }
-        .info-label { font-size: 9px; color: #888; text-transform: uppercase; }
-        .info-val { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        /* Grid de Informação Super Compacto */
+        .grid { display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 6px; margin-bottom: 8px; }
+        .box { background: #1f1f1f; padding: 6px 10px; border-radius: 8px; border-left: 3px solid var(--primary); }
+        .label { font-size: 9px; color: #888; text-transform: uppercase; display: block; }
+        .val { font-size: 12px; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-        .price-slim { font-size: 20px; color: var(--success); font-weight: 900; margin: 5px 0; }
+        input { width: 100%; padding: 10px; margin-bottom: 8px; background: #111; border: 1px solid #333; color: #fff; border-radius: 6px; }
     </style>
 </head>
 <body>
 
     <div id="m-login" class="screen active" style="justify-content: center;">
-        <div class="card">
-            <div class="logo-box" style="display:inline-block; margin-bottom:10px;">PINDAVAI</div>
+        <div class="card" style="text-align: center;">
+            <div class="logo" style="display:inline-block; margin-bottom:15px;">PINDAVAI</div>
             <input type="email" id="l-email" placeholder="E-mail">
             <input type="password" id="l-senha" placeholder="Senha">
-            <button class="btn btn-main" onclick="fazerLogin()">ENTRAR</button>
+            <button class="btn btn-main" onclick="fazerLogin()">ACESSAR PAINEL</button>
         </div>
     </div>
 
     <div id="m-status" class="screen">
-        <div class="header-mini">
-            <div class="logo-box">PINDAVAI</div>
-            <div id="badge-status" class="badge offline-glow">Offline</div>
+        <div class="top-bar">
+            <div class="logo">PINDAVAI</div>
+            <div id="st-label" style="color:#e74c3c">● OFFLINE</div>
         </div>
-        
-        <div class="card" style="margin-top: 5px;">
-            <h3 id="nome-m" style="margin: 5px 0;">Adriano</h3>
-            <p style="color:#777; font-size: 12px; margin-bottom: 15px;">Sistema de Monitoramento Ativo</p>
-            <button id="btn-toggle" class="btn btn-main" onclick="toggleOnline()">
-                <i class="fas fa-power-off"></i> FICAR ONLINE
-            </button>
-            <button onclick="logout()" style="background:none; border:none; color:#444; margin-top:15px; font-size:11px;">Sair da Conta</button>
+        <div class="card" style="text-align: center;">
+            <h4 id="nome-m" style="margin: 5px 0;">Adriano</h4>
+            <button id="btn-toggle" class="btn btn-main" onclick="toggleOnline()">FICAR ONLINE</button>
+            <button class="btn btn-danger" onclick="logout()" style="margin-top: 15px; opacity: 0.5;">SAIR DA CONTA</button>
         </div>
     </div>
 
     <div id="m-corrida" class="screen">
-        <div class="header-mini">
-            <div class="logo-box">EM CURSO</div>
-            <div id="fase-titulo" style="font-size: 11px; font-weight: bold; color: var(--primary);">BUSCANDO...</div>
+        <div class="top-bar">
+            <div id="fase-txt" style="color: var(--primary); font-weight: 900;">BUSCANDO PASSAGEIRO</div>
+            <div id="val-topo" style="color: var(--success); font-weight: bold;">R$ 0.00</div>
         </div>
-        
+
         <div class="card">
-            <div class="info-grid">
-                <div class="info-box" style="grid-column: span 2;">
-                    <div class="info-label">Passageiro</div>
-                    <div class="info-val" id="pass-nome">---</div>
-                </div>
-                <div class="info-box">
-                    <div class="info-label">Destino</div>
-                    <div class="info-val" id="dest-val">---</div>
-                </div>
-                <div class="info-box" style="border-left-color: var(--success);">
-                    <div class="info-label">Valor</div>
-                    <div class="info-val" style="color:var(--success)">R$ <span id="val-txt">0.00</span></div>
-                </div>
+            <div class="box" style="margin-bottom: 6px; border-left-color: #fff;">
+                <span class="label">Passageiro</span>
+                <div class="val" id="pass-nome">---</div>
+            </div>
+            
+            <div class="grid">
+                <div class="box"><span class="label">Destino</span><div class="val" id="dest-val">---</div></div>
+                <div class="box" style="border-left-color: var(--success);"><span class="label">Valor</span><div class="val" id="val-txt">R$ 0.00</div></div>
             </div>
 
             <button id="btn-gps-busca" class="btn btn-nav" onclick="abrirNavegador('origem')">
@@ -104,16 +87,13 @@
                 <i class="fas fa-map"></i> MAPA DESTINO
             </button>
 
-            <button id="btn-acao-corrida" class="btn btn-main" onclick="proximaFase()">
+            <button id="btn-acao" class="btn btn-main" onclick="proximaFase()">
                 CONFIRMAR EMBARQUE
             </button>
             
-            <div id="area-finalizar" style="display:none;">
-                <div class="price-slim">R$ <span id="val-total">0.00</span></div>
-                <button class="btn btn-main" onclick="finalizarCorrida()">
-                    <i class="fas fa-check"></i> FINALIZAR CORRIDA
-                </button>
-            </div>
+            <button id="btn-finalizar" class="btn btn-main" style="display:none; background: var(--success);" onclick="finalizarCorrida()">
+                FINALIZAR E RECEBER
+            </button>
         </div>
     </div>
 
@@ -137,7 +117,7 @@
             const d = snap.val();
             if(d && d.senha === senha) {
                 motorista = d; motorista.chave = chave;
-                document.getElementById('nome-m').innerText = d.nome;
+                document.getElementById('nome-m').innerText = d.nome.split(' ')[0]; // Só o primeiro nome para caber
                 verificarSeHaCorridaAtiva();
             } else { mostrarTela('m-login'); }
         });
@@ -159,11 +139,10 @@
     function toggleOnline() {
         isOnline = !isOnline;
         const btn = document.getElementById('btn-toggle');
-        const badge = document.getElementById('badge-status');
+        const lbl = document.getElementById('st-label');
         if(isOnline) {
-            btn.innerHTML = '<i class="fas fa-stop-circle"></i> FICAR OFFLINE';
-            btn.className = "btn btn-stop";
-            badge.innerText = "Online"; badge.className = "badge online-glow";
+            btn.innerText = "FICAR OFFLINE"; btn.style.background = "#e74c3c"; btn.style.color = "#fff";
+            lbl.innerText = "● ONLINE"; lbl.style.color = "#2ecc71";
             db.ref('corridas_abertas').on('value', snap => {
                 if(!isOnline || idCorrida) return;
                 snap.forEach(item => {
@@ -174,56 +153,51 @@
                 });
             });
         } else {
-            btn.innerHTML = '<i class="fas fa-power-off"></i> FICAR ONLINE';
-            btn.className = "btn btn-main";
-            badge.innerText = "Offline"; badge.className = "badge offline-glow";
+            btn.innerText = "FICAR ONLINE"; btn.style.background = "var(--primary)"; btn.style.color = "#000";
+            lbl.innerText = "● OFFLINE"; lbl.style.color = "#e74c3c";
             db.ref('corridas_abertas').off();
         }
     }
 
     function aceitar(id, dados) {
         idCorrida = id;
-        db.ref('corridas_abertas/' + id).update({
-            status: "Aceita", idMotorista: motorista.chave, nomeMotorista: motorista.nome
-        }).then(() => {
-            montarTelaCorrida(dados);
-            abrirNavegador('origem');
-        });
+        db.ref('corridas_abertas/' + id).update({ status: "Aceita", idMotorista: motorista.chave, nomeMotorista: motorista.nome })
+        .then(() => { montarTelaCorrida(dados); abrirNavegador('origem'); });
     }
 
     function montarTelaCorrida(dados) {
         dadosCorrida = dados;
-        document.getElementById('val-total').innerText = dados.valor;
-        document.getElementById('val-txt').innerText = dados.valor;
+        document.getElementById('val-topo').innerText = "R$ " + dados.valor;
+        document.getElementById('val-txt').innerText = "R$ " + dados.valor;
         document.getElementById('pass-nome').innerText = dados.cliente;
         document.getElementById('dest-val').innerText = dados.destino;
         
         if(dados.status === "Em Viagem") {
-            atualizarUIEmViagem();
+            atualizarUIViagem();
         } else {
-            document.getElementById('fase-titulo').innerText = "BUSCANDO PASSAGEIRO";
+            document.getElementById('fase-txt').innerText = "BUSCANDO PASSAGEIRO";
             document.getElementById('btn-gps-busca').style.display = "flex";
             document.getElementById('btn-gps-destino').style.display = "none";
-            document.getElementById('btn-acao-corrida').style.display = "flex";
-            document.getElementById('area-finalizar').style.display = "none";
+            document.getElementById('btn-acao').style.display = "flex";
+            document.getElementById('btn-finalizar').style.display = "none";
         }
         mostrarTela('m-corrida');
     }
 
     function proximaFase() {
         db.ref('corridas_abertas/' + idCorrida).update({ status: "Em Viagem" }).then(() => {
-            atualizarUIEmViagem();
+            atualizarUIViagem();
             setTimeout(() => { abrirNavegador('destino'); }, 300);
         });
     }
 
-    function atualizarUIEmViagem() {
-        document.getElementById('fase-titulo').innerText = "EM VIAGEM";
-        document.getElementById('fase-titulo').style.color = "var(--blue)";
+    function atualizarUIViagem() {
+        document.getElementById('fase-txt').innerText = "EM VIAGEM";
+        document.getElementById('fase-txt').style.color = "var(--blue)";
         document.getElementById('btn-gps-busca').style.display = "none";
         document.getElementById('btn-gps-destino').style.display = "flex";
-        document.getElementById('btn-acao-corrida').style.display = "none";
-        document.getElementById('area-finalizar').style.display = "block";
+        document.getElementById('btn-acao').style.display = "none";
+        document.getElementById('btn-finalizar').style.display = "flex";
     }
 
     function abrirNavegador(tipo) {
@@ -232,7 +206,7 @@
     }
 
     function finalizarCorrida() {
-        if(confirm("Finalizar?")) {
+        if(confirm("Finalizar corrida?")) {
             db.ref('corridas_abertas/' + idCorrida).update({ status: "Finalizada" }).then(() => {
                 idCorrida = null; mostrarTela('m-status');
             });
