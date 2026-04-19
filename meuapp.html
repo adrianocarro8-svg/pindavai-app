@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PINDAVAI - Motorista V7.0</title>
+    <title>PINDAVAI - Motorista V8.0</title>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
     <style>
@@ -78,9 +78,9 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    // SOM DE SIRENE/ALERTA (Link estável do Google)
-    const somAlerta = new Audio('https://actions.google.com/google_assistant/ambience/industrial/bell_01.mp3');
-    somAlerta.loop = true; 
+    // SISTEMA DE ALERTA: Som Irritante + Loop Forçado
+    const somAlerta = new Audio('https://raw.githubusercontent.com/rafael-pinto/sons/master/alarme.mp3');
+    somAlerta.loop = true;
     somAlerta.volume = 1.0;
 
     let motorista, idCorrida, isOnline = false, watchID = null;
@@ -92,6 +92,9 @@
     }
 
     function fazerLogin() {
+        // Tenta "acordar" o áudio no primeiro clique
+        somAlerta.play().then(() => somAlerta.pause()).catch(e => {});
+        
         const chave = document.getElementById('l-email').value.replace(/\./g, '_');
         db.ref('usuarios_motoristas/' + chave).once('value', snap => {
             const d = snap.val();
@@ -116,12 +119,11 @@
     function toggleOnline() {
         isOnline = !isOnline;
         const btn = document.getElementById('btn-toggle');
+        
         if(isOnline) {
-            // LIBERA O SOM: O navegador precisa disso no primeiro clique
-            somAlerta.play().then(() => {
-                somAlerta.pause();
-                somAlerta.currentTime = 0;
-            }).catch(e => console.log("Áudio aguardando..."));
+            // "Limpa" o áudio e testa vibração
+            somAlerta.play().then(() => somAlerta.pause()).catch(e => {});
+            if (navigator.vibrate) navigator.vibrate(200);
 
             btn.innerText = "FICAR OFFLINE"; btn.className = "btn btn-red";
             document.getElementById('txt-status').innerText = "Buscando passageiros...";
@@ -137,16 +139,18 @@
                 snap.forEach(item => {
                     const c = item.val();
                     if(c.status === "Aguardando" && !idCorrida) {
-                        // TOCA O SOM
-                        somAlerta.play();
                         
-                        if(confirm("🚨 NOVA CORRIDA!\n\nOrigem: " + c.origem + "\nDestino: " + c.destino + "\nValor: R$ " + c.valor)) {
-                            somAlerta.pause(); 
-                            somAlerta.currentTime = 0;
+                        // DISPARA ALERTA SONORO E VIBRAÇÃO
+                        somAlerta.play().catch(e => console.log("Erro som:", e));
+                        if (navigator.vibrate) navigator.vibrate([500, 300, 500, 300, 500]);
+
+                        if(confirm(`🚨 NOVA CORRIDA!\n\nOrigem: ${c.origem}\nDestino: ${c.destino}\nValor: R$ ${c.valor}`)) {
+                            somAlerta.pause(); somAlerta.currentTime = 0;
+                            if (navigator.vibrate) navigator.vibrate(0);
                             aceitar(item.key, c);
                         } else { 
-                            somAlerta.pause(); 
-                            somAlerta.currentTime = 0;
+                            somAlerta.pause(); somAlerta.currentTime = 0;
+                            if (navigator.vibrate) navigator.vibrate(0);
                         }
                     }
                 });
@@ -156,6 +160,7 @@
             db.ref('usuarios_motoristas/' + motorista.chave).update({ isOnline: false });
             db.ref('corridas_abertas').off();
             somAlerta.pause();
+            if (navigator.vibrate) navigator.vibrate(0);
             if(watchID) navigator.geolocation.clearWatch(watchID);
         }
     }
@@ -168,8 +173,9 @@
         }).then(() => {
             document.getElementById('val-total').innerText = dados.valor;
             document.getElementById('metodo-pagamento').innerText = "Pagamento: " + dados.pagamento;
-            document.getElementById('info-viagem').innerHTML = "<b>Passageiro:</b> " + dados.cliente + "<br><b>Origem:</b> " + dados.origem + "<br><b>Destino:</b> " + dados.destino;
+            document.getElementById('info-viagem').innerHTML = `<b>Passageiro:</b> ${dados.cliente}<br><b>Origem:</b> ${dados.origem}<br><b>Destino:</b> ${dados.destino}`;
             
+            // RESETAR BOTÕES DE NAVEGAÇÃO
             document.getElementById('fase-titulo').innerText = "INDO BUSCAR PASSAGEIRO";
             document.getElementById('fase-titulo').style.color = "var(--orange)";
             document.getElementById('btn-gps-busca').style.display = "block";
@@ -193,12 +199,12 @@
     function abrirNavegador(tipo) {
         const endereco = (tipo === 'origem') ? dadosCorrida.origem : dadosCorrida.destino;
         if(!endereco) return;
-        const url = "https://www.google.com/maps/dir/?api=1&destination=" + encodeURIComponent(endereco);
-        window.open(url, '_blank');
+        // Abre direto o Maps no celular
+        window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(endereco)}`, '_blank');
     }
 
     function finalizarCorrida() {
-        if(confirm("Confirmar fim da viagem?")) {
+        if(confirm("Confirmar fim da viagem e recebimento?")) {
             db.ref('corridas_abertas/' + idCorrida).update({ status: "Finalizada" }).then(() => {
                 idCorrida = null;
                 mostrarTela('m-status');
