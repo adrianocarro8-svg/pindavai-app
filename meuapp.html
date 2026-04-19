@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PINDAVAI - Motorista V11.0</title>
+    <title>PINDAVAI - Motorista V12.0</title>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
     <style>
@@ -39,7 +39,6 @@
         <div class="card">
             <h2 id="nome-m" style="margin-bottom: 5px;">Adriano</h2>
             <div id="badge-status" class="status-badge status-off">Status: Offline</div>
-            
             <button id="btn-toggle" class="btn btn-yellow" onclick="toggleOnline()">FICAR ONLINE</button>
             <button class="btn btn-outline" onclick="logout()" style="margin-top:30px; border:none; background:none; color:#999; cursor:pointer;">Sair da Conta</button>
         </div>
@@ -50,8 +49,8 @@
             <h4 id="fase-titulo" style="color: var(--orange); margin-top:0;">BUSCANDO PASSAGEIRO</h4>
             <div id="info-viagem" style="text-align:left; font-size:14px; margin-bottom:10px; background:#f9f9f9; padding:10px; border-radius:10px;"></div>
             
-            <button id="btn-gps-busca" class="btn btn-orange" onclick="abrirNavegador('origem')">🛰️ ABRIR GPS (MAPS)</button>
-            <button id="btn-gps-destino" class="btn btn-blue" style="display:none;" onclick="abrirNavegador('destino')">🛰️ ABRIR GPS (MAPS)</button>
+            <button id="btn-gps-busca" class="btn btn-orange" onclick="abrirNavegador('origem')">🛰️ ABRIR GPS (BUSCAR)</button>
+            <button id="btn-gps-destino" class="btn btn-blue" style="display:none;" onclick="abrirNavegador('destino')">🛰️ GPS DESTINO (ABERTO)</button>
 
             <hr style="margin:15px 0; border:0; border-top:1px solid #eee;">
             <button id="btn-acao-corrida" class="btn btn-yellow" onclick="proximaFase()">PASSAGEIRO EMBARCOU</button>
@@ -109,11 +108,9 @@
         isOnline = !isOnline;
         const btn = document.getElementById('btn-toggle');
         const badge = document.getElementById('badge-status');
-
         if(isOnline) {
             btn.innerText = "FICAR OFFLINE"; btn.className = "btn btn-red";
             badge.innerText = "Status: Online"; badge.className = "status-badge status-on";
-            
             db.ref('corridas_abertas').on('value', snap => {
                 if(!isOnline || idCorrida) return;
                 snap.forEach(item => {
@@ -134,7 +131,11 @@
         idCorrida = id;
         db.ref('corridas_abertas/' + id).update({
             status: "Aceita", idMotorista: motorista.chave, nomeMotorista: motorista.nome
-        }).then(() => montarTelaCorrida(dados));
+        }).then(() => {
+            montarTelaCorrida(dados);
+            // AUTO-ABRIR GPS para buscar o passageiro assim que aceita
+            abrirNavegador('origem');
+        });
     }
 
     function montarTelaCorrida(dados) {
@@ -156,7 +157,11 @@
     }
 
     function proximaFase(recuperando = false) {
-        if(!recuperando) db.ref('corridas_abertas/' + idCorrida).update({ status: "Em Viagem" });
+        if(!recuperando) {
+            db.ref('corridas_abertas/' + idCorrida).update({ status: "Em Viagem" });
+            // --- A MÁGICA AQUI: Abre o GPS de destino automaticamente ao clicar no botão ---
+            setTimeout(() => { abrirNavegador('destino'); }, 500); 
+        }
         document.getElementById('fase-titulo').innerText = "EM VIAGEM";
         document.getElementById('fase-titulo').style.color = "var(--blue)";
         document.getElementById('btn-gps-busca').style.display = "none";
@@ -167,7 +172,9 @@
 
     function abrirNavegador(tipo) {
         const local = (tipo === 'origem') ? dadosCorrida.origem : dadosCorrida.destino;
-        window.location.href = "https://www.google.com/maps/dir/?api=1&destination=" + encodeURIComponent(local);
+        if(local) {
+            window.location.href = "https://www.google.com/maps/dir/?api=1&destination=" + encodeURIComponent(local);
+        }
     }
 
     function finalizarCorrida() {
