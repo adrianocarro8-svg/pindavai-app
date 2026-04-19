@@ -3,47 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PINDAVAI COMPACT</title>
+    <title>PINDAVAI SLIM</title>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        :root { --primary: #ffcc00; --bg: #121212; --card-bg: #1e1e1e; --text: #fff; --danger: #ff4444; --success: #00c851; --blue: #33b5e5; }
-        
+        :root { --primary: #ffcc00; --bg: #000; --card-bg: #1a1a1a; --text: #fff; --danger: #ff4444; --success: #00c851; --blue: #33b5e5; }
         body { font-family: 'Segoe UI', sans-serif; margin: 0; background: var(--bg); color: var(--text); overflow: hidden; }
 
-        .screen { 
-            display: none; height: 100vh; width: 100%; flex-direction: column; 
-            padding: 15px; box-sizing: border-box; justify-content: center;
-        }
+        .screen { display: none; height: 100vh; width: 100%; flex-direction: column; padding: 10px; box-sizing: border-box; }
         .active { display: flex; }
 
-        /* Login mais compacto */
-        .logo-mini {
-            width: 60px; height: 60px; background: var(--primary); border-radius: 50%;
-            margin: 0 auto 10px; display: flex; align-items: center; justify-content: center;
-            font-size: 25px; color: #000;
-        }
+        .header-mini { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+        .logo-box { background: var(--primary); color:#000; padding: 5px 10px; border-radius: 8px; font-weight: 900; font-size: 14px; }
 
         .card { 
-            background: var(--card-bg); padding: 15px; border-radius: 20px; 
-            text-align: center; border: 1px solid rgba(255,255,255,0.05);
-            width: 100%; box-sizing: border-box;
+            background: var(--card-bg); padding: 12px; border-radius: 15px; 
+            text-align: center; border: 1px solid #333; width: 100%; box-sizing: border-box;
         }
 
-        .status-header { font-size: 1.2rem; font-weight: 800; margin: 0; }
-        
-        .badge {
-            padding: 4px 12px; border-radius: 50px; font-size: 11px;
-            text-transform: uppercase; font-weight: bold; margin-bottom: 15px; display: inline-block;
-        }
+        .badge { padding: 3px 10px; border-radius: 50px; font-size: 10px; font-weight: bold; }
         .online-glow { background: rgba(0, 200, 81, 0.1); color: var(--success); border: 1px solid var(--success); }
         .offline-glow { background: rgba(255, 68, 68, 0.1); color: var(--danger); border: 1px solid var(--danger); }
 
-        /* Botões Otimizados */
         .btn { 
-            width: 100%; padding: 14px; border: none; border-radius: 12px; 
-            font-weight: bold; font-size: 15px; margin-top: 10px;
+            width: 100%; padding: 12px; border: none; border-radius: 10px; 
+            font-weight: bold; font-size: 14px; margin-top: 8px;
             display: flex; align-items: center; justify-content: center; gap: 8px;
         }
         .btn-main { background: var(--primary); color: #000; }
@@ -51,25 +36,23 @@
         .btn-nav { background: var(--blue); color: #fff; }
         
         input { 
-            width: 100%; padding: 12px; margin: 5px 0; 
-            background: #2a2a2a; border: 1px solid #333; border-radius: 10px; color: white;
+            width: 100%; padding: 10px; margin: 5px 0; 
+            background: #222; border: 1px solid #444; border-radius: 8px; color: white;
         }
 
-        /* Layout de Corrida em Grid para caber tudo */
-        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 10px 0; }
-        .info-box { background: rgba(255,255,255,0.03); padding: 10px; border-radius: 12px; text-align: left; }
-        .info-label { font-size: 10px; color: #888; text-transform: uppercase; }
-        .info-val { font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 8px 0; }
+        .info-box { background: #222; padding: 8px; border-radius: 10px; text-align: left; border-left: 3px solid var(--primary); }
+        .info-label { font-size: 9px; color: #888; text-transform: uppercase; }
+        .info-val { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-        .price-compact { font-size: 24px; color: var(--success); font-weight: 900; margin: 10px 0; }
+        .price-slim { font-size: 20px; color: var(--success); font-weight: 900; margin: 5px 0; }
     </style>
 </head>
 <body>
 
-    <div id="m-login" class="screen active">
+    <div id="m-login" class="screen active" style="justify-content: center;">
         <div class="card">
-            <div class="logo-mini"><i class="fas fa-car"></i></div>
-            <h2 style="margin:0;">PINDAVAI</h2>
+            <div class="logo-box" style="display:inline-block; margin-bottom:10px;">PINDAVAI</div>
             <input type="email" id="l-email" placeholder="E-mail">
             <input type="password" id="l-senha" placeholder="Senha">
             <button class="btn btn-main" onclick="fazerLogin()">ENTRAR</button>
@@ -77,23 +60,28 @@
     </div>
 
     <div id="m-status" class="screen">
-        <div class="card">
-            <div class="status-header" id="nome-m">Adriano</div>
+        <div class="header-mini">
+            <div class="logo-box">PINDAVAI</div>
             <div id="badge-status" class="badge offline-glow">Offline</div>
-            <div style="margin: 15px 0;">
-                <i class="fas fa-satellite" style="font-size: 30px; color: var(--primary);"></i>
-            </div>
+        </div>
+        
+        <div class="card" style="margin-top: 5px;">
+            <h3 id="nome-m" style="margin: 5px 0;">Adriano</h3>
+            <p style="color:#777; font-size: 12px; margin-bottom: 15px;">Sistema de Monitoramento Ativo</p>
             <button id="btn-toggle" class="btn btn-main" onclick="toggleOnline()">
                 <i class="fas fa-power-off"></i> FICAR ONLINE
             </button>
-            <button onclick="logout()" style="background:none; border:none; color:#555; margin-top:20px; font-size:12px;">Sair</button>
+            <button onclick="logout()" style="background:none; border:none; color:#444; margin-top:15px; font-size:11px;">Sair da Conta</button>
         </div>
     </div>
 
     <div id="m-corrida" class="screen">
+        <div class="header-mini">
+            <div class="logo-box">EM CURSO</div>
+            <div id="fase-titulo" style="font-size: 11px; font-weight: bold; color: var(--primary);">BUSCANDO...</div>
+        </div>
+        
         <div class="card">
-            <div id="fase-titulo" style="color: var(--primary); font-weight:900; font-size:14px; margin-bottom:10px;">BUSCANDO PASSAGEIRO</div>
-            
             <div class="info-grid">
                 <div class="info-box" style="grid-column: span 2;">
                     <div class="info-label">Passageiro</div>
@@ -103,7 +91,7 @@
                     <div class="info-label">Destino</div>
                     <div class="info-val" id="dest-val">---</div>
                 </div>
-                <div class="info-box">
+                <div class="info-box" style="border-left-color: var(--success);">
                     <div class="info-label">Valor</div>
                     <div class="info-val" style="color:var(--success)">R$ <span id="val-txt">0.00</span></div>
                 </div>
@@ -121,9 +109,9 @@
             </button>
             
             <div id="area-finalizar" style="display:none;">
-                <div class="price-compact">R$ <span id="val-total">0.00</span></div>
+                <div class="price-slim">R$ <span id="val-total">0.00</span></div>
                 <button class="btn btn-main" onclick="finalizarCorrida()">
-                    <i class="fas fa-check"></i> FINALIZAR
+                    <i class="fas fa-check"></i> FINALIZAR CORRIDA
                 </button>
             </div>
         </div>
@@ -175,7 +163,7 @@
         if(isOnline) {
             btn.innerHTML = '<i class="fas fa-stop-circle"></i> FICAR OFFLINE';
             btn.className = "btn btn-stop";
-            badge.innerText = "Status: Online"; badge.className = "badge online-glow";
+            badge.innerText = "Online"; badge.className = "badge online-glow";
             db.ref('corridas_abertas').on('value', snap => {
                 if(!isOnline || idCorrida) return;
                 snap.forEach(item => {
@@ -188,7 +176,7 @@
         } else {
             btn.innerHTML = '<i class="fas fa-power-off"></i> FICAR ONLINE';
             btn.className = "btn btn-main";
-            badge.innerText = "Status: Offline"; badge.className = "badge offline-glow";
+            badge.innerText = "Offline"; badge.className = "badge offline-glow";
             db.ref('corridas_abertas').off();
         }
     }
@@ -225,7 +213,7 @@
     function proximaFase() {
         db.ref('corridas_abertas/' + idCorrida).update({ status: "Em Viagem" }).then(() => {
             atualizarUIEmViagem();
-            setTimeout(() => { abrirNavegador('destino'); }, 400);
+            setTimeout(() => { abrirNavegador('destino'); }, 300);
         });
     }
 
