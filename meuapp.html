@@ -84,7 +84,10 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    const somAlerta = new Audio('https://actions.google.com/google_assistant/ambience/industrial/bell_01.mp3');
+    // SOM TUNADO: Campainha potente com repetição (Loop)
+    const somAlerta = new Audio('https://noproblo.dayjo.org/ZeldaSounds/WW_New/WW_Fanfare_SmallItem.wav');
+    somAlerta.loop = true; 
+
     let motorista, idCorrida, isOnline = false, watchID = null;
     let dadosCorrida = { origem: "", destino: "", valor: "" };
 
@@ -111,7 +114,7 @@
             nome: document.getElementById('r-nome').value,
             veiculo: document.getElementById('r-veiculo').value,
             senha: document.getElementById('r-senha').value,
-            status: "Ativo", isOnline: false // Já deixei "Ativo" para facilitar seus testes
+            status: "Ativo", isOnline: false
         }).then(() => { alert("Cadastro realizado!"); mostrarTela('m-login'); });
     }
 
@@ -119,7 +122,9 @@
         isOnline = !isOnline;
         const btn = document.getElementById('btn-toggle');
         if(isOnline) {
-            somAlerta.play().then(() => somAlerta.pause()).catch(e => console.log("Som aguardando"));
+            // Destrava o som para o navegador permitir
+            somAlerta.play().then(() => { somAlerta.pause(); somAlerta.currentTime = 0; }).catch(e => {});
+            
             btn.innerText = "FICAR OFFLINE"; btn.className = "btn btn-red";
             document.getElementById('txt-status').innerText = "Buscando passageiros...";
             
@@ -134,11 +139,13 @@
                 snap.forEach(item => {
                     const c = item.val();
                     if(c.status === "Aguardando" && !idCorrida) {
-                        somAlerta.play();
+                        somAlerta.play(); // Inicia o barulho sem parar
                         if(confirm(`NOVA CORRIDA!\nOrigem: ${c.origem}\nDestino: ${c.destino}\nValor: R$ ${c.valor}`)) {
-                            somAlerta.pause();
+                            somAlerta.pause(); somAlerta.currentTime = 0; 
                             aceitar(item.key, c);
-                        } else { somAlerta.pause(); }
+                        } else { 
+                            somAlerta.pause(); somAlerta.currentTime = 0; 
+                        }
                     }
                 });
             });
@@ -146,6 +153,7 @@
             btn.innerText = "FICAR ONLINE"; btn.className = "btn btn-yellow";
             db.ref('usuarios_motoristas/' + motorista.chave).update({ isOnline: false });
             db.ref('corridas_abertas').off();
+            somAlerta.pause();
             if(watchID) navigator.geolocation.clearWatch(watchID);
         }
     }
@@ -160,7 +168,7 @@
             document.getElementById('metodo-pagamento').innerText = "Pagamento: " + dados.pagamento;
             document.getElementById('info-viagem').innerHTML = `<b>Passageiro:</b> ${dados.cliente}<br><b>Origem:</b> ${dados.origem}<br><b>Destino:</b> ${dados.destino}`;
             
-            // RESET DE BOTÕES (Garante que o laranja apareça primeiro)
+            // Garante que a tela comece no botão LARANJA
             document.getElementById('fase-titulo').innerText = "INDO BUSCAR PASSAGEIRO";
             document.getElementById('fase-titulo').style.color = "var(--orange)";
             document.getElementById('btn-gps-busca').style.display = "block";
@@ -184,8 +192,7 @@
     function abrirNavegador(tipo) {
         const endereco = (tipo === 'origem') ? dadosCorrida.origem : dadosCorrida.destino;
         if(!endereco) return;
-        // Nova URL mais amigável para abrir o App do Maps
-        const url = "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(endereco);
+        const url = "https://www.google.com/maps/dir/?api=1&destination=" + encodeURIComponent(endereco);
         window.open(url, '_blank');
     }
 
