@@ -84,9 +84,13 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    // SOM TUNADO: Campainha potente com repetição (Loop)
-    const somAlerta = new Audio('https://noproblo.dayjo.org/ZeldaSounds/WW_New/WW_Fanfare_SmallItem.wav');
+    // SOM IRRITANTE - Alarme tipo Sirene/Beep Contínuo
+    const somAlerta = new Audio('https://codeskulptor-demos.commondatastorage.googleapis.com/GalaxyInvaders/pause.wav'); 
     somAlerta.loop = true; 
+    somAlerta.volume = 1.0;
+
+    // Garante o reinício se o navegador travar o loop nativo
+    somAlerta.onended = function() { somAlerta.play(); };
 
     let motorista, idCorrida, isOnline = false, watchID = null;
     let dadosCorrida = { origem: "", destino: "", valor: "" };
@@ -122,8 +126,8 @@
         isOnline = !isOnline;
         const btn = document.getElementById('btn-toggle');
         if(isOnline) {
-            // Destrava o som para o navegador permitir
-            somAlerta.play().then(() => { somAlerta.pause(); somAlerta.currentTime = 0; }).catch(e => {});
+            // "Pré-ativa" o som para o navegador não bloquear o alerta depois
+            somAlerta.play().then(() => { somAlerta.pause(); }).catch(e => console.log("Som aguardando"));
             
             btn.innerText = "FICAR OFFLINE"; btn.className = "btn btn-red";
             document.getElementById('txt-status').innerText = "Buscando passageiros...";
@@ -139,12 +143,14 @@
                 snap.forEach(item => {
                     const c = item.val();
                     if(c.status === "Aguardando" && !idCorrida) {
-                        somAlerta.play(); // Inicia o barulho sem parar
-                        if(confirm(`NOVA CORRIDA!\nOrigem: ${c.origem}\nDestino: ${c.destino}\nValor: R$ ${c.valor}`)) {
-                            somAlerta.pause(); somAlerta.currentTime = 0; 
+                        somAlerta.play(); // O BARULHO COMEÇA AQUI
+                        if(confirm(`🚨 NOVA CORRIDA!\n\nOrigem: ${c.origem}\nDestino: ${c.destino}\nValor: R$ ${c.valor}`)) {
+                            somAlerta.pause(); 
+                            somAlerta.currentTime = 0; 
                             aceitar(item.key, c);
                         } else { 
-                            somAlerta.pause(); somAlerta.currentTime = 0; 
+                            somAlerta.pause(); 
+                            somAlerta.currentTime = 0; 
                         }
                     }
                 });
@@ -168,7 +174,7 @@
             document.getElementById('metodo-pagamento').innerText = "Pagamento: " + dados.pagamento;
             document.getElementById('info-viagem').innerHTML = `<b>Passageiro:</b> ${dados.cliente}<br><b>Origem:</b> ${dados.origem}<br><b>Destino:</b> ${dados.destino}`;
             
-            // Garante que a tela comece no botão LARANJA
+            // Configura visual para BUSCA (Botão Laranja)
             document.getElementById('fase-titulo').innerText = "INDO BUSCAR PASSAGEIRO";
             document.getElementById('fase-titulo').style.color = "var(--orange)";
             document.getElementById('btn-gps-busca').style.display = "block";
@@ -181,6 +187,7 @@
     }
 
     function proximaFase() {
+        // Configura visual para VIAGEM (Botão Azul)
         document.getElementById('fase-titulo').innerText = "EM VIAGEM COM PASSAGEIRO";
         document.getElementById('fase-titulo').style.color = "var(--blue)";
         document.getElementById('btn-gps-busca').style.display = "none";
