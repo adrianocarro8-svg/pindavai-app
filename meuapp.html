@@ -59,18 +59,12 @@
     <div id="m-corrida" class="screen">
         <div class="card">
             <h4 id="fase-titulo" style="color: var(--orange);">INDO BUSCAR PASSAGEIRO</h4>
-            
             <div id="info-viagem" style="text-align:left; font-size:14px; margin-bottom:10px;"></div>
-            
             <div id="metodo-pagamento" class="pay-badge">---</div>
-
             <button id="btn-gps-busca" class="btn btn-orange" onclick="abrirNavegador('origem')">🛰️ NAVEGAR ATÉ PASSAGEIRO</button>
             <button id="btn-gps-destino" class="btn btn-blue" style="display:none;" onclick="abrirNavegador('destino')">🛰️ NAVEGAR ATÉ DESTINO</button>
-
             <hr style="margin:15px 0; border:0; border-top:1px solid #eee;">
-
             <button id="btn-acao-corrida" class="btn btn-yellow" onclick="proximaFase()">PASSAGEIRO EMBARCOU</button>
-            
             <div id="area-finalizar" style="display:none; background:#e7f9ed; padding:10px; border-radius:10px; margin-top:10px;">
                 <small>VALOR A COBRAR:</small><br>
                 <b style="font-size:22px; color:#28a745;">R$ <span id="val-total">0.00</span></b>
@@ -84,13 +78,10 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    // SOM IRRITANTE - Alarme tipo Sirene/Beep Contínuo
-    const somAlerta = new Audio('https://codeskulptor-demos.commondatastorage.googleapis.com/GalaxyInvaders/pause.wav'); 
+    // SOM DE SIRENE/ALERTA (Link estável do Google)
+    const somAlerta = new Audio('https://actions.google.com/google_assistant/ambience/industrial/bell_01.mp3');
     somAlerta.loop = true; 
     somAlerta.volume = 1.0;
-
-    // Garante o reinício se o navegador travar o loop nativo
-    somAlerta.onended = function() { somAlerta.play(); };
 
     let motorista, idCorrida, isOnline = false, watchID = null;
     let dadosCorrida = { origem: "", destino: "", valor: "" };
@@ -126,9 +117,12 @@
         isOnline = !isOnline;
         const btn = document.getElementById('btn-toggle');
         if(isOnline) {
-            // "Pré-ativa" o som para o navegador não bloquear o alerta depois
-            somAlerta.play().then(() => { somAlerta.pause(); }).catch(e => console.log("Som aguardando"));
-            
+            // LIBERA O SOM: O navegador precisa disso no primeiro clique
+            somAlerta.play().then(() => {
+                somAlerta.pause();
+                somAlerta.currentTime = 0;
+            }).catch(e => console.log("Áudio aguardando..."));
+
             btn.innerText = "FICAR OFFLINE"; btn.className = "btn btn-red";
             document.getElementById('txt-status').innerText = "Buscando passageiros...";
             
@@ -143,14 +137,16 @@
                 snap.forEach(item => {
                     const c = item.val();
                     if(c.status === "Aguardando" && !idCorrida) {
-                        somAlerta.play(); // O BARULHO COMEÇA AQUI
-                        if(confirm(`🚨 NOVA CORRIDA!\n\nOrigem: ${c.origem}\nDestino: ${c.destino}\nValor: R$ ${c.valor}`)) {
+                        // TOCA O SOM
+                        somAlerta.play();
+                        
+                        if(confirm("🚨 NOVA CORRIDA!\n\nOrigem: " + c.origem + "\nDestino: " + c.destino + "\nValor: R$ " + c.valor)) {
                             somAlerta.pause(); 
-                            somAlerta.currentTime = 0; 
+                            somAlerta.currentTime = 0;
                             aceitar(item.key, c);
                         } else { 
                             somAlerta.pause(); 
-                            somAlerta.currentTime = 0; 
+                            somAlerta.currentTime = 0;
                         }
                     }
                 });
@@ -172,9 +168,8 @@
         }).then(() => {
             document.getElementById('val-total').innerText = dados.valor;
             document.getElementById('metodo-pagamento').innerText = "Pagamento: " + dados.pagamento;
-            document.getElementById('info-viagem').innerHTML = `<b>Passageiro:</b> ${dados.cliente}<br><b>Origem:</b> ${dados.origem}<br><b>Destino:</b> ${dados.destino}`;
+            document.getElementById('info-viagem').innerHTML = "<b>Passageiro:</b> " + dados.cliente + "<br><b>Origem:</b> " + dados.origem + "<br><b>Destino:</b> " + dados.destino;
             
-            // Configura visual para BUSCA (Botão Laranja)
             document.getElementById('fase-titulo').innerText = "INDO BUSCAR PASSAGEIRO";
             document.getElementById('fase-titulo').style.color = "var(--orange)";
             document.getElementById('btn-gps-busca').style.display = "block";
@@ -187,7 +182,6 @@
     }
 
     function proximaFase() {
-        // Configura visual para VIAGEM (Botão Azul)
         document.getElementById('fase-titulo').innerText = "EM VIAGEM COM PASSAGEIRO";
         document.getElementById('fase-titulo').style.color = "var(--blue)";
         document.getElementById('btn-gps-busca').style.display = "none";
@@ -204,7 +198,7 @@
     }
 
     function finalizarCorrida() {
-        if(confirm("Confirmar fim da viagem e recebimento?")) {
+        if(confirm("Confirmar fim da viagem?")) {
             db.ref('corridas_abertas/' + idCorrida).update({ status: "Finalizada" }).then(() => {
                 idCorrida = null;
                 mostrarTela('m-status');
