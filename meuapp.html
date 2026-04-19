@@ -3,62 +3,167 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PINDAVAI - Motorista V12.0</title>
+    <title>PINDAVAI PRO</title>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        :root { --primary: #ffcc00; --dark: #1a1a1a; --success: #28a745; --danger: #dc3545; --blue: #007bff; --orange: #fd7e14; }
-        body { font-family: 'Segoe UI', sans-serif; margin: 0; background: #f0f2f5; overscroll-behavior: none; }
-        .screen { display: none; height: 100vh; flex-direction: column; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box; }
+        :root { 
+            --primary: #ffcc00; 
+            --bg: #121212; 
+            --card-bg: #1e1e1e;
+            --text: #ffffff;
+            --danger: #ff4444;
+            --success: #00c851;
+            --blue: #33b5e5;
+        }
+
+        body { 
+            font-family: 'Inter', sans-serif; 
+            margin: 0; 
+            background: var(--bg); 
+            color: var(--text);
+            display: flex;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .screen { 
+            display: none; 
+            height: 100vh; 
+            width: 100%;
+            max-width: 450px;
+            flex-direction: column; 
+            padding: 25px; 
+            box-sizing: border-box;
+            animation: fadeIn 0.4s ease;
+        }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
         .active { display: flex; }
-        .card { background: white; padding: 25px; border-radius: 20px; width: 100%; max-width: 350px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); text-align: center; }
-        .btn { width: 100%; padding: 15px; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; margin-top: 10px; font-size: 15px; transition: 0.3s; }
-        .btn-yellow { background: var(--primary); color: var(--dark); }
-        .btn-red { background: var(--danger); color: white; }
-        .btn-blue { background: var(--blue); color: white; }
-        .btn-orange { background: var(--orange); color: white; }
-        input { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 10px; box-sizing: border-box; }
-        .status-badge { font-weight: bold; padding: 5px 15px; border-radius: 20px; margin-bottom: 15px; display: inline-block; }
-        .status-off { background: #ffebee; color: var(--danger); }
-        .status-on { background: #e8f5e9; color: var(--success); }
+
+        /* Login Estilizado */
+        .login-box { text-align: center; margin-top: 20%; }
+        .logo-circle {
+            width: 100px; height: 100px; background: var(--primary);
+            border-radius: 50%; margin: 0 auto 20px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 40px; color: #000; box-shadow: 0 0 20px rgba(255, 204, 0, 0.4);
+        }
+
+        /* Cards do Painel */
+        .card { 
+            background: var(--card-bg); 
+            padding: 25px; 
+            border-radius: 25px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5); 
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .status-header {
+            font-size: 1.5rem; font-weight: 800; margin-bottom: 5px;
+            letter-spacing: -1px;
+        }
+
+        /* Badge Neon */
+        .badge {
+            padding: 6px 15px; border-radius: 50px; font-size: 12px;
+            text-transform: uppercase; font-weight: bold; margin-bottom: 25px;
+            display: inline-block;
+        }
+        .online-glow { background: rgba(0, 200, 81, 0.2); color: var(--success); border: 1px solid var(--success); box-shadow: 0 0 10px rgba(0, 200, 81, 0.3); }
+        .offline-glow { background: rgba(255, 68, 68, 0.2); color: var(--danger); border: 1px solid var(--danger); }
+
+        /* Botões Estilo App */
+        .btn { 
+            width: 100%; padding: 18px; border: none; border-radius: 18px; 
+            font-weight: 900; cursor: pointer; margin-top: 15px; 
+            font-size: 16px; transition: 0.3s active;
+            display: flex; align-items: center; justify-content: center; gap: 10px;
+        }
+        .btn:active { transform: scale(0.96); }
+
+        .btn-main { background: var(--primary); color: #000; box-shadow: 0 10px 20px rgba(255, 204, 0, 0.2); }
+        .btn-stop { background: var(--danger); color: #fff; }
+        .btn-nav { background: var(--blue); color: #fff; }
+        
+        input { 
+            width: 100%; padding: 15px; margin: 10px 0; 
+            background: #2a2a2a; border: 1px solid #333; 
+            border-radius: 15px; color: white; font-size: 16px;
+        }
+
+        /* Info Corrida */
+        .info-row { text-align: left; background: rgba(255,255,255,0.03); padding: 15px; border-radius: 15px; margin: 15px 0; }
+        .info-label { font-size: 11px; color: #888; text-transform: uppercase; }
+        .info-val { font-size: 15px; font-weight: 500; margin-top: 3px; }
+
+        .price-tag { font-size: 32px; color: var(--success); font-weight: 900; margin: 15px 0; }
     </style>
 </head>
 <body>
 
     <div id="m-login" class="screen active">
-        <div class="card">
-            <h2>PINDAVAI</h2>
-            <p>Painel Motorista</p>
-            <input type="email" id="l-email" placeholder="E-mail">
-            <input type="password" id="l-senha" placeholder="Senha">
-            <button class="btn btn-yellow" onclick="fazerLogin()">ENTRAR</button>
+        <div class="login-box">
+            <div class="logo-circle"><i class="fas fa-car-side"></i></div>
+            <h1 style="margin:0;">PINDAVAI</h1>
+            <p style="color:#888; margin-bottom:40px;">Painel do Motorista</p>
+            <input type="email" id="l-email" placeholder="Seu e-mail">
+            <input type="password" id="l-senha" placeholder="Sua senha">
+            <button class="btn btn-main" onclick="fazerLogin()">ENTRAR NO SISTEMA</button>
         </div>
     </div>
 
     <div id="m-status" class="screen">
-        <div class="card">
-            <h2 id="nome-m" style="margin-bottom: 5px;">Adriano</h2>
-            <div id="badge-status" class="status-badge status-off">Status: Offline</div>
-            <button id="btn-toggle" class="btn btn-yellow" onclick="toggleOnline()">FICAR ONLINE</button>
-            <button class="btn btn-outline" onclick="logout()" style="margin-top:30px; border:none; background:none; color:#999; cursor:pointer;">Sair da Conta</button>
+        <div style="margin-top: 10%">
+            <p style="color:#888; margin-bottom:5px;">Bem-vindo,</p>
+            <div class="status-header" id="nome-m">Adriano</div>
+            <div id="badge-status" class="badge offline-glow">Offline</div>
+            
+            <div class="card" style="margin-top: 20px;">
+                <i class="fas fa-satellite-dish" style="font-size: 40px; color: var(--primary); margin-bottom: 15px;"></i>
+                <h3>Pronto para rodar?</h3>
+                <p style="color:#888; font-size:14px;">Fique online para começar a receber chamadas na sua região.</p>
+                <button id="btn-toggle" class="btn btn-main" onclick="toggleOnline()">
+                    <i class="fas fa-power-off"></i> FICAR ONLINE
+                </button>
+            </div>
+            <button onclick="logout()" style="background:none; border:none; color:#555; width:100%; margin-top:40px;">Sair da conta</button>
         </div>
     </div>
 
     <div id="m-corrida" class="screen">
-        <div class="card">
-            <h4 id="fase-titulo" style="color: var(--orange); margin-top:0;">BUSCANDO PASSAGEIRO</h4>
-            <div id="info-viagem" style="text-align:left; font-size:14px; margin-bottom:10px; background:#f9f9f9; padding:10px; border-radius:10px;"></div>
+        <div class="card" style="border-bottom: 4px solid var(--primary);">
+            <div id="fase-titulo" style="color: var(--primary); font-weight:900; letter-spacing:1px; margin-bottom:15px;">BUSCANDO PASSAGEIRO</div>
             
-            <button id="btn-gps-busca" class="btn btn-orange" onclick="abrirNavegador('origem')">🛰️ ABRIR GPS (BUSCAR)</button>
-            <button id="btn-gps-destino" class="btn btn-blue" style="display:none;" onclick="abrirNavegador('destino')">🛰️ GPS DESTINO (ABERTO)</button>
+            <div class="info-row">
+                <div class="info-label">Passageiro</div>
+                <div class="info-val" id="pass-nome">---</div>
+            </div>
+            
+            <div class="info-row">
+                <div class="info-label">Destino Final</div>
+                <div class="info-val" id="dest-val" style="color: var(--blue);">---</div>
+            </div>
 
-            <hr style="margin:15px 0; border:0; border-top:1px solid #eee;">
-            <button id="btn-acao-corrida" class="btn btn-yellow" onclick="proximaFase()">PASSAGEIRO EMBARCOU</button>
+            <button id="btn-gps-busca" class="btn btn-nav" onclick="abrirNavegador('origem')">
+                <i class="fas fa-location-arrow"></i> ABRIR MAPA DE BUSCA
+            </button>
+            <button id="btn-gps-destino" class="btn btn-nav" style="display:none;" onclick="abrirNavegador('destino')">
+                <i class="fas fa-map-marked-alt"></i> NAVEGAR AO DESTINO
+            </button>
+
+            <button id="btn-acao-corrida" class="btn btn-main" style="margin-top:20px;" onclick="proximaFase()">
+                CONFIRMAR EMBARQUE
+            </button>
             
-            <div id="area-finalizar" style="display:none; background:#e7f9ed; padding:15px; border-radius:10px; margin-top:10px;">
-                <small>VALOR A RECEBER:</small><br>
-                <b style="font-size:24px; color:#28a745;">R$ <span id="val-total">0.00</span></b>
-                <button class="btn btn-yellow" onclick="finalizarCorrida()">RECEBIDO / FINALIZAR</button>
+            <div id="area-finalizar" style="display:none;">
+                <div class="price-tag">R$ <span id="val-total">0.00</span></div>
+                <button class="btn btn-main" onclick="finalizarCorrida()">
+                    <i class="fas fa-check-circle"></i> ENCERRAR E RECEBER
+                </button>
             </div>
         </div>
     </div>
@@ -71,10 +176,15 @@
     let motorista, idCorrida, isOnline = false;
     let dadosCorrida = { origem: "", destino: "", valor: "" };
 
+    // Sincronização de volta ao App
+    document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === 'visible' && motorista) verificarSeHaCorridaAtiva();
+    });
+
     window.onload = () => {
-        const emailSalvo = localStorage.getItem('pindavai_email');
-        const senhaSalva = localStorage.getItem('pindavai_senha');
-        if(emailSalvo && senhaSalva) autoLogin(emailSalvo, senhaSalva);
+        const e = localStorage.getItem('pindavai_email');
+        const s = localStorage.getItem('pindavai_senha');
+        if(e && s) autoLogin(e, s);
     };
 
     function autoLogin(email, senha) {
@@ -91,16 +201,14 @@
 
     function verificarSeHaCorridaAtiva() {
         db.ref('corridas_abertas').once('value', snap => {
-            let encontrou = false;
+            let ativa = false;
             snap.forEach(item => {
                 const c = item.val();
                 if(c.idMotorista === motorista.chave && c.status !== "Finalizada") {
-                    idCorrida = item.key;
-                    montarTelaCorrida(c);
-                    encontrou = true;
+                    idCorrida = item.key; montarTelaCorrida(c); ativa = true;
                 }
             });
-            if(!encontrou) mostrarTela('m-status');
+            if(!ativa && !isOnline) mostrarTela('m-status');
         });
     }
 
@@ -109,20 +217,22 @@
         const btn = document.getElementById('btn-toggle');
         const badge = document.getElementById('badge-status');
         if(isOnline) {
-            btn.innerText = "FICAR OFFLINE"; btn.className = "btn btn-red";
-            badge.innerText = "Status: Online"; badge.className = "status-badge status-on";
+            btn.innerHTML = '<i class="fas fa-stop-circle"></i> FICAR OFFLINE';
+            btn.className = "btn btn-stop";
+            badge.innerText = "Status: Online"; badge.className = "badge online-glow";
             db.ref('corridas_abertas').on('value', snap => {
                 if(!isOnline || idCorrida) return;
                 snap.forEach(item => {
                     const c = item.val();
                     if(c.status === "Aguardando") {
-                        if(confirm("🚨 NOVA CORRIDA!\n\nOrigem: " + c.origem)) aceitar(item.key, c);
+                        if(confirm("NOVA CORRIDA!\nOrigem: " + c.origem)) aceitar(item.key, c);
                     }
                 });
             });
         } else {
-            btn.innerText = "FICAR ONLINE"; btn.className = "btn btn-yellow";
-            badge.innerText = "Status: Offline"; badge.className = "status-badge status-off";
+            btn.innerHTML = '<i class="fas fa-power-off"></i> FICAR ONLINE';
+            btn.className = "btn btn-main";
+            badge.innerText = "Status: Offline"; badge.className = "badge offline-glow";
             db.ref('corridas_abertas').off();
         }
     }
@@ -133,7 +243,6 @@
             status: "Aceita", idMotorista: motorista.chave, nomeMotorista: motorista.nome
         }).then(() => {
             montarTelaCorrida(dados);
-            // AUTO-ABRIR GPS para buscar o passageiro assim que aceita
             abrirNavegador('origem');
         });
     }
@@ -141,57 +250,56 @@
     function montarTelaCorrida(dados) {
         dadosCorrida = dados;
         document.getElementById('val-total').innerText = dados.valor;
-        document.getElementById('info-viagem').innerHTML = `<b>Passageiro:</b> ${dados.cliente}<br><b>Origem:</b> ${dados.origem}<br><b>Destino:</b> ${dados.destino}<br><b>Pagamento:</b> ${dados.pagamento}`;
+        document.getElementById('pass-nome').innerText = dados.cliente;
+        document.getElementById('dest-val').innerText = dados.destino;
         
         if(dados.status === "Em Viagem") {
-            proximaFase(true);
+            atualizarUIEmViagem();
         } else {
             document.getElementById('fase-titulo').innerText = "BUSCANDO PASSAGEIRO";
-            document.getElementById('fase-titulo').style.color = "var(--orange)";
-            document.getElementById('btn-gps-busca').style.display = "block";
+            document.getElementById('btn-gps-busca').style.display = "flex";
             document.getElementById('btn-gps-destino').style.display = "none";
-            document.getElementById('btn-acao-corrida').style.display = "block";
+            document.getElementById('btn-acao-corrida').style.display = "flex";
             document.getElementById('area-finalizar').style.display = "none";
         }
         mostrarTela('m-corrida');
     }
 
-    function proximaFase(recuperando = false) {
-        if(!recuperando) {
-            db.ref('corridas_abertas/' + idCorrida).update({ status: "Em Viagem" });
-            // --- A MÁGICA AQUI: Abre o GPS de destino automaticamente ao clicar no botão ---
-            setTimeout(() => { abrirNavegador('destino'); }, 500); 
-        }
-        document.getElementById('fase-titulo').innerText = "EM VIAGEM";
+    function proximaFase() {
+        db.ref('corridas_abertas/' + idCorrida).update({ status: "Em Viagem" }).then(() => {
+            atualizarUIEmViagem();
+            setTimeout(() => { abrirNavegador('destino'); }, 400);
+        });
+    }
+
+    function atualizarUIEmViagem() {
+        document.getElementById('fase-titulo').innerText = "EM VIAGEM ATÉ O DESTINO";
         document.getElementById('fase-titulo').style.color = "var(--blue)";
         document.getElementById('btn-gps-busca').style.display = "none";
-        document.getElementById('btn-gps-destino').style.display = "block";
+        document.getElementById('btn-gps-destino').style.display = "flex";
         document.getElementById('btn-acao-corrida').style.display = "none";
         document.getElementById('area-finalizar').style.display = "block";
     }
 
     function abrirNavegador(tipo) {
         const local = (tipo === 'origem') ? dadosCorrida.origem : dadosCorrida.destino;
-        if(local) {
-            window.location.href = "https://www.google.com/maps/dir/?api=1&destination=" + encodeURIComponent(local);
-        }
+        if(local) window.location.href = "google.navigation:q=" + encodeURIComponent(local);
     }
 
     function finalizarCorrida() {
-        if(confirm("Confirmar recebimento e finalizar?")) {
+        if(confirm("Confirmar recebimento do valor?")) {
             db.ref('corridas_abertas/' + idCorrida).update({ status: "Finalizada" }).then(() => {
-                idCorrida = null;
-                mostrarTela('m-status');
+                idCorrida = null; mostrarTela('m-status');
             });
         }
     }
 
     function fazerLogin() {
-        const email = document.getElementById('l-email').value;
-        const senha = document.getElementById('l-senha').value;
-        localStorage.setItem('pindavai_email', email);
-        localStorage.setItem('pindavai_senha', senha);
-        autoLogin(email, senha);
+        const e = document.getElementById('l-email').value;
+        const s = document.getElementById('l-senha').value;
+        localStorage.setItem('pindavai_email', e);
+        localStorage.setItem('pindavai_senha', s);
+        autoLogin(e, s);
     }
 
     function logout() { localStorage.clear(); location.reload(); }
