@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PINDAVAI - Passageiro V6.0</title>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        :root { --primary: #ffcc00; --dark: #1a1a1a; --bg: #f0f2f5; }
+        body { font-family: 'Segoe UI', sans-serif; margin: 0; background: var(--bg); overflow: hidden; }
+        .screen { display: none; flex-direction: column; height: 100vh; width: 100%; }
+        .active { display: flex; }
+        .form-screen { justify-content: center; align-items: center; padding: 20px; box-sizing: border-box; }
+        .card { background: white; padding: 25px; border-radius: 20px; width: 100%; max-width: 350px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); text-align: center; }
+        input, select { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 10px; box-sizing: border-box; font-size: 14px; }
+        .btn { width: 100%; padding: 15px; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; margin-top: 10px; font-size: 16px; }
+        .btn-yellow { background: var(--primary); color: var(--dark); }
+        .btn-link { background: none; color: #666; text-decoration: underline; font-size: 13px; border:none; cursor:pointer; }
+        #map-p { flex-grow: 1; width: 100%; z-index: 1; }
+        .panel { background: white; padding: 20px; border-radius: 25px 25px 0 0; z-index: 1000; box-shadow: 0 -5px 15px rgba(0,0,0,0.1); position: relative; }
+        .price-box { background: #e7f9ed; color: #28a745; padding: 15px; border-radius: 10px; font-weight: bold; font-size: 24px; margin: 10px 0; }
+        .btn-sair { position: absolute; top: -50px; right: 10px; background: white; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 5px rgba(0,0,0,0.2); border: none; font-size: 18px; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <div id="p-login" class="screen form-screen active">
+        <div class="card">
+            <h2>PINDAVAI</h2>
+            <p>Passageiro</p>
+            <input type="email" id="l-email" placeholder="E-mail">
+            <input type="password" id="l-senha" placeholder="Senha">
+            <button class="btn btn-yellow" onclick="fazerLogin()">ENTRAR</button>
+            <button class="btn btn-link" onclick="mostrarTela('p-registro')">Criar nova conta</button>
+        </div>
+    </div>
+
+    <div id="p-registro" class="screen form-screen">
+        <div class="card">
+            <h3>Criar Conta</h3>
+            <input type="text" id="r-nome" placeholder="Nome Completo">
+            <input type="email" id="r-email" placeholder="E-mail">
+            <input type="password" id="r-senha" placeholder="Criar Senha">
+            <button class="btn btn-yellow" onclick="cadastrarPassageiro()">CADASTRAR</button>
+            <button class="btn btn-link" onclick="mostrarTela('p-login')">Já tenho conta (Login)</button>
+        </div>
+    </div>
+
+    <div id="p-home" class="screen">
+        <div id="map-p"></div>
+        <div class="panel">
+            <button class="btn-sair" title="Sair do App" onclick="sairDoApp()">🚪</button>
+
+            <div id="step-rota">
+                <input type="text" id="route-origin" placeholder="📍 Onde você está?">
+                <input type="text" id="route-dest" placeholder="🏁 Para onde vamos?">
+                <button class="btn btn-yellow" onclick="gerarOrcamento()">CALCULAR VALOR</button>
+            </div>
+
+            <div id="step-confirm" style="display:none; text-align:center;">
+                <div class="price-box">R$ <span id="display-price">0.00</span></div>
+                
+                <label style="font-size: 12px; color: #666;">Forma de Pagamento:</label>
+                <select id="metodo-pag">
+                    <option value="Dinheiro">💵 Dinheiro</option>
+                    <option value="Cartão">💳 Cartão (Maquininha)</option>
+                </select>
+
+                <button class="btn btn-yellow" onclick="pedirCorrida()">CONFIRMAR VIAGEM</button>
+                <button class="btn" style="background:#eee" onclick="resetarInterface()">VOLTAR / ALTERAR</button>
+            </div>
+
+            <div id="step-waiting" style="display:none; text-align:center;">
+                <h3 id="status-msg">Procurando motorista...</h3>
+                <div id="dados-motorista" style="margin: 10px 0; font-weight: bold; color: #007bff;"></div>
+                <button class="btn" style="background:#ff4444; color:white;" onclick="cancelarCorrida()">CANCELAR CORRIDA</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+    const firebaseConfig = { databaseURL: "https://meuappmobilidade-a6f93-default-rtdb.firebaseio.com" };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    let map, passageiroDados, valorFinal, idCorridaAtiva = null;
+
+    function mostrarTela(id) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+        if(id === 'p-home') { setTimeout(initMap, 300); }
+    }
+
+    function cadastrarPassageiro() {
+        const email = document.getElementById('r-email').value;
+        const chave = email.replace(/\./g, '_');
+        db.ref('usuarios_passageiros/' + chave).set({
+            nome: document.getElementById('r-nome').value,
+            email: email,
+            senha: document.getElementById('r-senha').value
+        }).then(() => { alert("Cadastrado com sucesso!"); mostrarTela('p-login'); });
+    }
+
+    function fazerLogin() {
+        const email = document.getElementById('l-email').value;
+        const chave = email.replace(/\./g, '_');
+        db.ref('usuarios_passageiros/' + chave).once('value', snap => {
+            const d = snap.val();
+            if(d && d.senha === document.getElementById('l-senha').value) {
+                passageiroDados = d;
+                mostrarTela('p-home');
+            } else { alert("Login ou senha incorretos!"); }
+        });
+    }
+
+    function initMap() {
+        if(map) return;
+        map = L.map('map-p').setView([-22.92, -45.45], 15);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+    }
+
+    function resetarInterface() {
+        document.getElementById('step-confirm').style.display = "none";
+        document.getElementById('step-waiting').style.display = "none";
+        document.getElementById('step-rota').style.display = "block";
+        document.getElementById('route-dest').value = "";
+        document.getElementById('status-msg').innerText = "Procurando motorista...";
+        document.getElementById('dados-motorista').innerText = "";
+        idCorridaAtiva = null;
+    }
+
+    function sairDoApp() {
+        if(confirm("Deseja realmente sair da sua conta?")) {
+            location.reload(); 
+        }
+    }
+
+    function gerarOrcamento() {
+        const dest = document.getElementById('route-dest').value;
+        if(!dest) return alert("Digite o destino!");
+
+        db.ref('configuracoes/tarifas').once('value', snap => {
+            const t = snap.val();
+            // Cálculo baseado na quantidade de letras do destino (apenas para simulação)
+            valorFinal = (t.base + (dest.length * 0.6)).toFixed(2);
+            document.getElementById('display-price').innerText = valorFinal;
+            document.getElementById('step-rota').style.display = "none";
+            document.getElementById('step-confirm').style.display = "block";
+        });
+    }
+
+    function pedirCorrida() {
+        const pagamento = document.getElementById('metodo-pag').value;
+        idCorridaAtiva = db.ref('corridas_abertas').push().key;
+        
+        const info = {
+            id: idCorridaAtiva,
+            cliente: passageiroDados.nome,
+            origem: document.getElementById('route-origin').value || "Localização Atual",
+            destino: document.getElementById('route-dest').value,
+            valor: valorFinal,
+            pagamento: pagamento,
+            status: "Aguardando"
+        };
+
+        db.ref('corridas_abertas/' + idCorridaAtiva).set(info).then(() => {
+            document.getElementById('step-confirm').style.display = "none";
+            document.getElementById('step-waiting').style.display = "block";
+        });
+
+        // MONITORAR STATUS (Sincronizado com o motorista)
+        db.ref('corridas_abertas/' + idCorridaAtiva).on('value', snap => {
+            const c = snap.val();
+            if(!c) return;
+
+            if(c.status === "Aceita") {
+                document.getElementById('status-msg').innerText = "Motorista aceitou a corrida!";
+                document.getElementById('dados-motorista').innerText = "🚗 " + c.nomeMotorista + " está a caminho";
+            }
+            if(c.status === "Finalizada") {
+                alert("Você chegou ao seu destino! Obrigado.");
+                resetarInterface();
+            }
+        });
+    }
+
+    function cancelarCorrida() {
+        if(confirm("Deseja cancelar a solicitação?")) {
+            if(idCorridaAtiva) {
+                db.ref('corridas_abertas/' + idCorridaAtiva).remove();
+            }
+            resetarInterface();
+        }
+    }
+</script>
+</body>
+</html>
