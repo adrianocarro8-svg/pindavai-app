@@ -18,18 +18,15 @@
         .screen { display: none; height: 100vh; flex-direction: column; }
         .active { display: flex; }
         
-        /* Autenticação */
         .auth-container { flex: 1; display: flex; align-items: center; justify-content: center; padding: 20px; overflow-y: auto; }
         .auth-card { background: white; padding: 25px; border-radius: 20px; width: 100%; max-width: 400px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
         
         input, select { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 15px; }
         .btn-main { background: var(--pindavai); color: #000; border: none; width: 100%; padding: 15px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 16px; margin-top: 10px; }
         
-        /* App Layout */
         #map { flex: 1; width: 100%; }
         .ride-panel { background: white; padding: 20px; border-radius: 25px 25px 0 0; box-shadow: 0 -5px 15px rgba(0,0,0,0.1); z-index: 1000; max-height: 50vh; overflow-y: auto; }
         
-        /* Status da Corrida */
         #status-monitor { display: none; background: var(--dark); color: white; padding: 20px; border-radius: 20px 20px 0 0; position: fixed; bottom: 0; width: 100%; box-sizing: border-box; z-index: 2000; text-align: center; }
         .driver-info { background: #333; padding: 15px; border-radius: 10px; margin-top: 10px; text-align: left; border-left: 5px solid var(--pindavai); }
         
@@ -97,17 +94,14 @@
 
     <script>
         const firebaseConfig = {
-            apiKey: "AIzaSyCjP9yWZK4AUkJmswfb5iZVTlENDfTmP8o",
-            authDomain: "meuappmobilidade-a6f93.firebaseapp.com",
-            projectId: "meuappmobilidade-a6f93",
-            databaseURL: "https://meuappmobilidade-a6f93-default-rtdb.firebaseio.com/",
-            storageBucket: "meuappmobilidade-a6f93.firebasestorage.app"
+            databaseURL: "https://meuappmobilidade-a6f93-default-rtdb.firebaseio.com/"
         };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
         let paradasContador = 0;
         let idCorridaAtual = null;
+        let currentUser = null;
 
         function navegar(id) {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -137,39 +131,42 @@
             }
         }
 
-        async function acaoCadastro() {
-            const nome = document.getElementById('cad-nome').value;
-            const cpf = document.getElementById('cad-cpf').value;
-            const email = document.getElementById('cad-email').value;
-            const senha = document.getElementById('cad-senha').value;
-            if(!nome || !cpf || !email) return alert("Preencha tudo!");
-            await db.ref('passageiros').push({ nome, cpf, email, senha, status: "ativo" });
-            alert("Cadastrado!"); navegar('screen-login');
-        }
-
         function acaoLogin() {
             const email = document.getElementById('login-email').value;
             const senha = document.getElementById('login-senha').value;
             db.ref('passageiros').orderByChild('email').equalTo(email).once('value', snap => {
                 if(snap.exists()){
-                    const user = Object.values(snap.val())[0];
+                    const idUser = Object.keys(snap.val())[0];
+                    const user = snap.val()[idUser];
                     if(user.senha === senha) {
-                        localStorage.setItem('pindavai_user', JSON.stringify(user));
+                        currentUser = { ...user, id: idUser };
+                        localStorage.setItem('pindavai_user', JSON.stringify(currentUser));
                         document.getElementById('user-welcome').innerText = "Olá, " + user.nome;
                         navegar('screen-app');
                         initMap();
+                        verificarCorridaAtiva(); // NOVO: Tenta recuperar corrida ao logar
                     } else alert("Senha incorreta");
                 } else alert("Usuário não encontrado");
             });
         }
 
-        function initMap() {
-            const map = L.map('map').setView([-22.9255, -45.4548], 14);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+        function verificarCorridaAtiva() {
+            db.ref('corridas_pendentes').once('value', snap => {
+                const corridas = snap.val();
+                for(let id in corridas) {
+                    const c = corridas[id];
+                    if(c.passageiroNome === currentUser.nome && c.status !== "Finalizada" && c.status !== "Cancelada") {
+                        idCorridaAtual = id;
+                        document.getElementById('panel-request').style.display = "none";
+                        document.getElementById('status-monitor').style.display = "block";
+                        monitorarCorrida();
+                        break;
+                    }
+                }
+            });
         }
 
         function solicitarCorrida() {
-            const user = JSON.parse(localStorage.getItem('pindavai_user'));
             const partida = document.getElementById('inp-partida').value;
             const destino = document.getElementById('inp-destino').value;
             const pagamento = document.getElementById('select-pagamento').value;
@@ -178,7 +175,7 @@
             if(!partida || !destino || !pagamento) return alert("Preencha todos os dados!");
 
             const corrida = {
-                passageiroNome: user.nome,
+                passageiroNome: currentUser.nome,
                 partida, destino, pagamento, valor: preco,
                 status: "pendente",
                 data: new Date().toISOString()
@@ -202,7 +199,8 @@
                 const infoBox = document.getElementById('info-motorista-box');
 
                 if(dados.status === "A caminho") {
-                    statusMsg.innerText = "MOTORISTA ENCONTRADO!";
+                    statusMsg.innerText = "MOTORISTA A CAMINHO!";
+                    statusMsg.style.color = "#ffcc00";
                     infoBox.style.display = "block";
                     document.getElementById('nome-mot').innerText = "Motorista: " + dados.motoristaNome;
                     document.getElementById('carro-mot').innerText = "Carro: " + (dados.motoristaModelo || "Veículo");
@@ -211,15 +209,30 @@
                 } 
                 else if(dados.status === "Em Viagem") {
                     statusMsg.innerText = "VOCÊ ESTÁ EM VIAGEM";
+                    statusMsg.style.color = "#28a745";
+                    document.getElementById('btn-cancelar').style.display = "none";
+                }
+                else if(dados.status === "Finalizada") {
+                    alert("Viagem Finalizada! Obrigado por usar o Pindavaí.");
+                    location.reload();
+                }
+                else if(dados.status === "Cancelada") {
+                    alert("A viagem foi cancelada.");
+                    location.reload();
                 }
             });
         }
 
         function cancelarCorrida() {
-            if(confirm("Deseja cancelar?")) {
-                db.ref('corridas_pendentes/' + idCorridaAtual).remove();
-                location.reload();
+            if(confirm("Deseja realmente cancelar?")) {
+                db.ref('corridas_pendentes/' + idCorridaAtual).update({ status: "Cancelada" })
+                .then(() => location.reload());
             }
+        }
+
+        function initMap() {
+            const map = L.map('map').setView([-22.9255, -45.4548], 14);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
         }
     </script>
 </body>
