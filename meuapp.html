@@ -40,7 +40,8 @@
         <div class="card">
             <h3>Cadastro de Motorista</h3>
             <input type="text" id="c-nome" placeholder="Nome Completo">
-            <input type="text" id="c-tel" placeholder="Telefone / WhatsApp"> <input type="text" id="c-cpf" placeholder="CPF">
+            <input type="text" id="c-tel" placeholder="Telefone / WhatsApp">
+            <input type="text" id="c-cpf" placeholder="CPF">
             <input type="text" id="c-modelo" placeholder="Modelo do Carro (ex: Onix)">
             <input type="text" id="c-placa" placeholder="Placa do Veículo">
             <input type="email" id="c-email" placeholder="E-mail">
@@ -89,50 +90,33 @@
     const db = firebase.database();
 
     let dadosMotorista = null;
-    let motoristaId = null; // Guardar o ID real do banco
+    let motoristaId = null;
+    let watchID = null;
     let isOnline = false, idCorridaAtiva = null, dadosCorridaAtual = null, etapaViagem = "buscar";
     const somAlerta = document.getElementById('audioNotificacao');
 
-    // Cadastro de Motorista Atualizado
     async function acaoCadastroMotorista() {
         const nome = document.getElementById('c-nome').value;
-        const telefone = document.getElementById('c-tel').value; // Pegando telefone
+        const telefone = document.getElementById('c-tel').value;
         const cpf = document.getElementById('c-cpf').value;
         const modelo = document.getElementById('c-modelo').value;
         const placa = document.getElementById('c-placa').value;
         const email = document.getElementById('c-email').value;
         const senha = document.getElementById('c-senha').value;
-
-        if(!nome || !telefone || !email) return alert("Preencha Nome, Telefone e E-mail!");
-
-        await db.ref('motoristas').push({
-            nome, 
-            telefone, 
-            cpf, 
-            modelo, 
-            placa, 
-            email, 
-            senha, 
-            status: "ativo",
-            nota: 5.0 // Todo motorista começa com nota máxima
-        });
-        
-        alert("Cadastro realizado com sucesso!");
-        mostrarTela('m-login');
+        if(!nome || !telefone || !email) return alert("Preencha os dados obrigatórios!");
+        await db.ref('motoristas').push({ nome, telefone, cpf, modelo, placa, email, senha, status: "ativo", nota: 5.0 });
+        alert("Cadastro realizado!"); mostrarTela('m-login');
     }
 
     function fazerLogin() {
         const email = document.getElementById('l-email').value;
         const senha = document.getElementById('l-senha').value;
-
         db.ref('motoristas').orderByChild('email').equalTo(email).once('value', snap => {
             if(snap.exists()){
-                const id = Object.keys(snap.val())[0];
-                const user = snap.val()[id];
-
+                motoristaId = Object.keys(snap.val())[0];
+                const user = snap.val()[motoristaId];
                 if(user.senha === senha) {
                     dadosMotorista = user;
-                    motoristaId = id; // Guardamos o ID para avaliações futuras
                     document.getElementById('nome-exibicao').innerText = "Olá, " + user.nome;
                     mostrarTela('m-status');
                 } else alert("Senha incorreta");
@@ -140,20 +124,49 @@
         });
     }
 
-    // ... (restante das funções toggleOnline e ouvirCorridas permanecem iguais)
+    function atualizarLocalizacaoNoBanco(lat, lng) {
+        if(!motoristaId || !isOnline) return;
+        // Status muda de cor na central: disponivel (verde), ocupado (vermelho)
+        let statusMapa = idCorridaAtiva ? "ocupado" : "disponivel";
+        
+        db.ref('localizacao_motoristas/' + motoristaId).set({
+            nome: dadosMotorista.nome,
+            placa: dadosMotorista.placa,
+            lat: lat,
+            lng: lng,
+            status: statusMapa
+        });
+    }
+
+    function iniciarRastreamento() {
+        if ("geolocation" in navigator) {
+            watchID = navigator.geolocation.watchPosition(position => {
+                atualizarLocalizacaoNoBanco(position.coords.latitude, position.coords.longitude);
+            }, error => console.log(error), { enableHighAccuracy: true });
+        }
+    }
+
+    function pararRastreamento() {
+        if (watchID) navigator.geolocation.clearWatch(watchID);
+        if (motoristaId) db.ref('localizacao_motoristas/' + motoristaId).remove();
+    }
+
     function toggleOnline() {
         isOnline = !isOnline;
         const btn = document.getElementById('btn-toggle');
         const statusTxt = document.getElementById('status-text');
+        
         if(isOnline) {
             btn.innerText = "FICAR OFFLINE"; btn.className = "btn btn-red";
             statusTxt.innerText = "VOCÊ ESTÁ ONLINE - AGUARDANDO CORRIDAS";
             statusTxt.style.color = "green";
+            iniciarRastreamento();
             ouvirCorridas();
         } else {
             btn.innerText = "FICAR ONLINE"; btn.className = "btn btn-yellow";
             statusTxt.innerText = "VOCÊ ESTÁ OFFLINE";
             statusTxt.style.color = "red";
+            pararRastreamento();
             db.ref('corridas_pendentes').off();
         }
     }
@@ -194,10 +207,16 @@
         
         db.ref('corridas_pendentes/' + idCorridaAtiva).update({ 
             status: "A caminho", 
-            motoristaId: motoristaId, // Importante para avaliação
+            motoristaId: motoristaId,
             motoristaNome: dadosMotorista.nome,
             motoristaPlaca: dadosMotorista.placa 
         });
+
+        // Atualiza status no mapa para Ocupado (Vermelho)
+        navigator.geolocation.getCurrentPosition(p => {
+            atualizarLocalizacaoNoBanco(p.coords.latitude, p.coords.longitude);
+        });
+
         mostrarTela('m-viagem');
     }
 
@@ -212,14 +231,17 @@
 
     function abrirGPS() {
         let local = (etapaViagem === "buscar") ? dadosCorridaAtual.partida : dadosCorridaAtual.destino;
-        window.location.href = "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(local);
+        window.location.href = "https://www.google.com/maps/dir/?api=1&destination=" + encodeURIComponent(local);
     }
 
     function finalizarCorrida() {
-        // Antes de remover, avisamos o passageiro que acabou para ele poder avaliar
         db.ref('corridas_pendentes/' + idCorridaAtiva).update({ status: "Finalizada" }).then(() => {
-            alert("Corrida Finalizada! O passageiro poderá te avaliar agora.");
+            alert("Viagem Finalizada!");
             idCorridaAtiva = null;
+            // Volta status no mapa para Disponível (Verde)
+            navigator.geolocation.getCurrentPosition(p => {
+                atualizarLocalizacaoNoBanco(p.coords.latitude, p.coords.longitude);
+            });
             mostrarTela('m-status');
         });
     }
