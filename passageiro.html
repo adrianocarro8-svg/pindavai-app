@@ -2,8 +2,8 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PINDAVAI - Passageiro V7.0</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>PINDAVAI - Passageiro</title>
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
@@ -13,142 +13,193 @@
     <script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.js"></script>
 
     <style>
-        :root { --pindavai: #ffcc00; --dark: #1a1a1a; --text: #333; }
-        body { font-family: 'Segoe UI', sans-serif; margin: 0; background: #f4f4f4; }
+        :root { --pindavai: #ffcc00; --dark: #1a1a1a; --gray: #f4f4f4; }
+        body, html { margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; height: 100%; overflow: hidden; background: var(--gray); }
+
+        /* Telas */
+        .screen { display: none; height: 100vh; width: 100%; flex-direction: column; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box; }
+        .active { display: flex; }
+
+        /* Estilo Formulários */
+        .auth-card { background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 400px; text-align: center; }
+        .logo { font-size: 32px; font-weight: bold; margin-bottom: 20px; color: var(--dark); }
+        .logo span { color: var(--pindavai); }
         
-        #map { height: 50vh; width: 100%; }
+        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
+        button { width: 100%; padding: 15px; border: none; border-radius: 8px; font-weight: bold; font-size: 16px; cursor: pointer; transition: 0.3s; }
+        .btn-main { background: var(--pindavai); color: #000; }
+        .btn-link { background: none; color: var(--primary); font-size: 14px; margin-top: 10px; }
+
+        /* Tela do Mapa */
+        #map { flex: 1; width: 100%; }
+        .map-panel { height: 280px; background: white; width: 100%; border-radius: 25px 25px 0 0; position: relative; top: -25px; padding: 20px; box-sizing: border-box; box-shadow: 0 -5px 15px rgba(0,0,0,0.1); z-index: 1000; }
+        .price-tag { font-size: 24px; font-weight: bold; text-align: center; margin: 15px 0; display: block; }
         
-        .container { padding: 20px; position: relative; top: -20px; background: white; border-radius: 20px 20px 0 0; box-shadow: 0 -5px 15px rgba(0,0,0,0.1); }
-        
-        .input-group { background: #f9f9f9; padding: 10px; border-radius: 10px; margin-bottom: 10px; display: flex; align-items: center; gap: 10px; }
-        .input-group input { border: none; background: transparent; width: 100%; outline: none; font-size: 16px; }
-        
-        .price-box { background: var(--dark); color: white; padding: 15px; border-radius: 12px; text-align: center; margin: 15px 0; }
-        .price-box span { font-size: 24px; font-weight: bold; color: var(--pindavai); }
-        
-        .btn-confirm { background: var(--pindavai); color: black; border: none; width: 100%; padding: 15px; border-radius: 12px; font-weight: bold; font-size: 18px; cursor: pointer; }
-        
-        /* Estilo da rota no mapa */
-        .leaflet-routing-container { display: none; } /* Esconde o painel de texto do roteamento */
+        /* Foto de Perfil */
+        .profile-img-preview { width: 80px; height: 80px; border-radius: 50%; background: #eee; margin: 10px auto; object-fit: cover; border: 2px solid var(--pindavai); }
     </style>
 </head>
 <body>
 
-    <div id="map"></div>
-
-    <div class="container">
-        <div class="input-group">
-            <i class="fas fa-circle" style="color: #28a745;"></i>
-            <input type="text" id="origem" placeholder="Sua localização..." readonly>
+    <div id="screen-login" class="screen active">
+        <div class="auth-card">
+            <div class="logo">PINDA<span>VAÍ</span></div>
+            <input type="email" id="login-email" placeholder="E-mail">
+            <input type="password" id="login-senha" placeholder="Senha">
+            <button class="btn-main" onclick="acaoLogin()">ENTRAR</button>
+            <button class="btn-link" onclick="navegar('screen-cadastro')">Criar nova conta</button>
         </div>
-        <div class="input-group">
-            <i class="fas fa-location-dot" style="color: #ff4444;"></i>
-            <input type="text" id="destino" placeholder="Para onde vamos?">
-        </div>
+    </div>
 
-        <div class="price-box">
-            Valor Estimado: <br>
-            <span id="valor-exibido">R$ 0,00</span>
+    <div id="screen-cadastro" class="screen">
+        <div class="auth-card">
+            <h3>Crie sua conta</h3>
+            <img id="preview" class="profile-img-preview" src="https://cdn-icons-png.flaticon.com/512/149/149071.png">
+            <input type="text" id="cad-nome" placeholder="Nome Completo">
+            <input type="text" id="cad-cpf" placeholder="CPF">
+            <input type="email" id="cad-email" placeholder="E-mail">
+            <input type="password" id="cad-senha" placeholder="Senha">
+            <button class="btn-main" onclick="acaoCadastro()">CADASTRAR AGORA</button>
+            <button class="btn-link" onclick="navegar('screen-login')">Voltar ao Login</button>
         </div>
+    </div>
 
-        <button class="btn-confirm" onclick="confirmarViagem()">CONFIRMAR VIAGEM</button>
+    <div id="screen-app" class="screen" style="padding:0;">
+        <div id="map"></div>
+        <div class="map-panel">
+            <input type="text" id="inp-origem" placeholder="Sua localização" readonly>
+            <input type="text" id="inp-destino" placeholder="Para onde você vai?">
+            <div class="price-tag" id="display-preco">R$ 0,00</div>
+            <button class="btn-main" onclick="pedirCorrida()">SOLICITAR PINDAVAÍ</button>
+        </div>
     </div>
 
     <script>
-        // CONFIGURAÇÃO FIREBASE
+        // --- CONFIGURAÇÃO FIREBASE ---
         const firebaseConfig = { databaseURL: "https://meuappmobilidade-a6f93-default-rtdb.firebaseio.com" };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
-        let map, userMarker, routingControl;
-        let distanciaFinal = 0, tempoFinal = 0, valorFinal = 0;
+        let map, routingControl, userPos = null;
+        let valorCalculado = 0;
 
+        // --- NAVEGAÇÃO ENTRE TELAS ---
+        function navegar(screenId) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(screenId).classList.add('active');
+            if(screenId === 'screen-app') initMap();
+        }
+
+        // --- LÓGICA DE LOGIN ---
+        function acaoLogin() {
+            const email = document.getElementById('login-email').value;
+            const senha = document.getElementById('login-senha').value;
+
+            db.ref('passageiros').orderByChild('email').equalTo(email).once('value', snap => {
+                if (snap.exists()) {
+                    const id = Object.keys(snap.val())[0];
+                    const user = snap.val()[id];
+
+                    if (user.senha === senha) {
+                        if (user.status === "bloqueado") {
+                            alert("Sua conta está BLOQUEADA pela Central. Motivo: Avaliação baixa ou restrição administrativa.");
+                        } else {
+                            localStorage.setItem('pindavai_user', JSON.stringify({id, ...user}));
+                            navegar('screen-app');
+                        }
+                    } else { alert("Senha incorreta!"); }
+                } else { alert("Usuário não encontrado. Faça o cadastro!"); }
+            });
+        }
+
+        // --- LÓGICA DE CADASTRO ---
+        function acaoCadastro() {
+            const dados = {
+                nome: document.getElementById('cad-nome').value,
+                cpf: document.getElementById('cad-cpf').value,
+                email: document.getElementById('cad-email').value,
+                senha: document.getElementById('cad-senha').value,
+                status: "ativo",
+                nota: 5.0,
+                foto: "https://cdn-icons-png.flaticon.com/512/149/149071.png"
+            };
+
+            if(!dados.nome || !dados.email || !dados.senha) return alert("Preencha os campos obrigatórios!");
+
+            db.ref('passageiros').push(dados).then(() => {
+                alert("Cadastro realizado com sucesso!");
+                navegar('screen-login');
+            });
+        }
+
+        // --- MAPA E CÁLCULOS ---
         function initMap() {
+            if(map) return;
             map = L.map('map').setView([-22.9255, -45.4548], 14);
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-            // Capturar localização real
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(pos => {
-                    const { latitude, longitude } = pos.coords;
-                    map.setView([latitude, longitude], 15);
-                    userMarker = L.marker([latitude, longitude]).addTo(map).bindPopup("Você está aqui").openPopup();
-                    document.getElementById('origem').value = "Minha Localização Atual";
-                });
-            }
+            navigator.geolocation.getCurrentPosition(p => {
+                userPos = [p.coords.latitude, p.coords.longitude];
+                map.setView(userPos, 15);
+                L.marker(userPos).addTo(map).bindPopup("Você").openPopup();
+                document.getElementById('inp-origem').value = "Minha Localização";
+            });
         }
 
-        // FUNÇÃO DE CÁLCULO DINÂMICO (Conectada à Central Master)
-        async function calcularPreco(distanciaKM, tempoMinutos) {
-            const snapshot = await db.ref('configuracoes/tarifas').once('value');
-            const t = snapshot.val();
-
-            if (!t) return 0;
-
-            let valorKMUsado = parseFloat(t.km); // Valor padrão cidade
-
-            // Lógica de Faixas que você pediu:
-            if (distanciaKM > 100 && distanciaKM <= 500) {
-                valorKMUsado = parseFloat(t.km_100_a_500);
-            } else if (distanciaKM > 50 && distanciaKM <= 100) {
-                valorKMUsado = parseFloat(t.km_50_a_100);
-            } else if (distanciaKM > 15 && distanciaKM <= 50) {
-                valorKMUsado = parseFloat(t.km_ate_50);
-            }
-
-            const base = parseFloat(t.base);
-            const precoMinuto = tempoMinutos * parseFloat(t.minuto);
-            const precoDistancia = distanciaKM * valorKMUsado;
-
-            const total = base + precoDistancia + precoMinuto;
-            return total;
-        }
-
-        // SIMULAÇÃO DE ROTA (Ao digitar destino)
-        document.getElementById('destino').addEventListener('change', function() {
-            // Aqui você integraria com uma API de busca (Nominatim ou Google)
-            // Para este exemplo, vamos simular que ao digitar algo, ele traça uma rota de 12km
-            alert("Buscando rota...");
-            executarRoteamento([-22.9255, -45.4548], [-22.9300, -45.5000]); // Coordenadas exemplo
+        // Simulação de Destino (Para testar o preço)
+        document.getElementById('inp-destino').addEventListener('change', function() {
+            // Simulação: Ao digitar algo, traça uma rota fixa para teste de 12km ou 60km
+            // Em produção, você usa Geocoding aqui.
+            const coordsDestino = [-22.9500, -45.5000]; 
+            tracarRota(userPos, coordsDestino);
         });
 
-        function executarRoteamento(start, end) {
-            if (routingControl) map.removeControl(routingControl);
+        async function tracarRota(start, end) {
+            if(routingControl) map.removeControl(routingControl);
 
             routingControl = L.Routing.control({
                 waypoints: [L.latLng(start), L.latLng(end)],
                 routeWhileDragging: false,
-                lineOptions: { styles: [{ color: '#ffcc00', weight: 5 }] }
+                addWaypoints: false,
+                lineOptions: { styles: [{ color: '#ffcc00', weight: 6 }] }
             }).on('routesfound', async function(e) {
-                const routes = e.routes[0];
-                distanciaFinal = routes.summary.totalDistance / 1000; // KM
-                tempoFinal = routes.summary.totalTime / 60; // Minutos
-
-                valorFinal = await calcularPreco(distanciaFinal, tempoFinal);
-                document.getElementById('valor-exibido').innerText = `R$ ${valorFinal.toFixed(2)}`;
+                const r = e.routes[0];
+                const dist = r.summary.totalDistance / 1000;
+                const tempo = r.summary.totalTime / 60;
+                
+                valorCalculado = await calcularTarifaPindavai(dist, tempo);
+                document.getElementById('display-preco').innerText = `R$ ${valorCalculado.toFixed(2)}`;
             }).addTo(map);
         }
 
-        function confirmarViagem() {
-            if (valorFinal <= 0) {
-                alert("Selecione um destino primeiro!");
-                return;
-            }
+        async function calcularTarifaPindavai(km, min) {
+            const snap = await db.ref('configuracoes/tarifas').once('value');
+            const t = snap.val();
+            if(!t) return 0;
 
-            const novaCorrida = {
-                passageiro_nome: "Usuário Teste", // Aqui viria do login
-                valor: valorFinal.toFixed(2),
-                distancia: distanciaFinal.toFixed(2),
-                status: "procurando",
-                timestamp: Date.now()
-            };
+            let kmPrice = parseFloat(t.km); // Padrão cidade
 
-            db.ref('corridas').push(novaCorrida).then(() => {
-                alert("Procurando motoristas próximos...");
-            });
+            // Aplicação das Faixas de Longa Distância
+            if (km > 100 && km <= 500) kmPrice = parseFloat(t.km_100_a_500);
+            else if (km > 50 && km <= 100) kmPrice = parseFloat(t.km_50_a_100);
+            else if (km > 15 && km <= 50) kmPrice = parseFloat(t.km_ate_50);
+
+            const total = parseFloat(t.base) + (km * kmPrice) + (min * parseFloat(t.minuto));
+            return total;
         }
 
-        window.onload = initMap;
+        function pedirCorrida() {
+            if(valorCalculado === 0) return alert("Defina um destino primeiro!");
+            const user = JSON.parse(localStorage.getItem('pindavai_user'));
+            
+            db.ref('corridas').push({
+                cliente_id: user.id,
+                cliente_nome: user.nome,
+                valor: valorCalculado.toFixed(2),
+                status: "procurando",
+                timestamp: Date.now()
+            }).then(() => alert("Chamada enviada! Aguardando motorista..."));
+        }
     </script>
 </body>
 </html>
