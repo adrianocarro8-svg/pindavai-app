@@ -4,10 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>PINDAVAI - Motorista V12.0</title>
+    
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
+    
     <style>
-        :root { --primary: #ffcc00; --dark: #1a1a1a; --success: #28a745; --danger: #dc3545; --blue: #007bff; --orange: #fd7e14; }
+        :root { --primary: #ffcc00; --dark: #1a1a1a; --success: #28a745; --danger: #dc3545; --blue: #007bff; }
         body { font-family: 'Segoe UI', sans-serif; margin: 0; background: #f0f2f5; overscroll-behavior: none; }
         .screen { display: none; height: 100vh; flex-direction: column; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box; }
         .active { display: flex; }
@@ -15,8 +17,7 @@
         .btn { width: 100%; padding: 15px; border: none; border-radius: 12px; font-weight: bold; font-size: 16px; cursor: pointer; margin-top: 10px; transition: 0.3s; }
         .btn-yellow { background: var(--primary); color: #000; }
         .btn-red { background: var(--danger); color: #fff; }
-        .btn-blue { background: var(--blue); color: #fff; }
-        .status-badge { padding: 10px 20px; border-radius: 50px; font-weight: bold; margin-bottom: 20px; }
+        .status-badge { padding: 10px 20px; border-radius: 50px; font-weight: bold; margin-bottom: 20px; font-size: 14px; }
         .status-off { background: #eee; color: #666; }
         .status-on { background: rgba(40, 167, 69, 0.1); color: var(--success); border: 1px solid var(--success); }
         input { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
@@ -28,181 +29,131 @@
         <div class="card">
             <h2 style="margin-bottom: 5px;">PINDAVAÍ</h2>
             <p style="font-size: 12px; color: #666; margin-bottom: 20px;">PORTAL DO MOTORISTA</p>
-            <input type="text" id="l-email" placeholder="E-mail ou Usuário">
+            <input type="text" id="l-email" placeholder="Usuário">
             <input type="password" id="l-senha" placeholder="Senha">
-            <button class="btn btn-yellow" onclick="fazerLogin()">ENTRAR</button>
+            <button class="btn btn-yellow" onclick="fazerLogin()">ENTRAR NO SISTEMA</button>
         </div>
     </div>
 
     <div id="m-status" class="screen">
         <div id="badge-status" class="status-badge status-off">Status: Offline</div>
         <div class="card">
-            <h3 id="nome-motorista">Olá, Motorista</h3>
-            <p id="info-veiculo" style="font-size: 14px; color: #888;">Carregando...</p>
+            <h3 id="nome-exibicao">Bem-vindo</h3>
+            <p style="font-size: 14px; color: #888; margin-bottom: 20px;">Pindamonhangaba - SP</p>
+            
             <button id="btn-toggle" class="btn btn-yellow" onclick="toggleOnline()">FICAR ONLINE</button>
-            <button class="btn" style="background:none; color:var(--danger); font-size:12px;" onclick="logout()">Sair do Sistema</button>
+            <button class="btn" style="background:none; color:var(--danger); font-size:12px; margin-top: 20px;" onclick="logout()">Sair / Trocar Conta</button>
         </div>
-    </div>
-
-    <div id="m-chamada" class="screen" style="background: rgba(0,0,0,0.8);">
-        <div class="card" style="border: 4px solid var(--primary); animation: pulse 1s infinite;">
-            <h2 style="color: var(--orange)">NOVA VIAGEM!</h2>
-            <div id="detalhes-chamada" style="text-align: left; margin: 15px 0; font-size: 14px;"></div>
-            <button class="btn btn-yellow" onclick="aceitarCorrida()">ACEITAR AGORA</button>
-            <button class="btn" style="background: #eee;" onclick="recusarCorrida()">RECUSAR</button>
-        </div>
-    </div>
-
-    <div id="m-viagem" class="screen">
-        <div class="card">
-            <h4 id="pass-nome">Passageiro</h4>
-            <p id="pass-rota" style="font-size: 13px; color: #666;"></p>
-            <div style="margin: 15px 0; font-weight: bold; font-size: 18px; color: var(--success);" id="pass-valor"></div>
-            
-            <button id="btn-gps-busca" class="btn btn-blue" onclick="abrirNavegador('origem')"><i class="fas fa-map-marker-alt"></i> IR ATÉ O CLIENTE</button>
-            <button id="btn-gps-destino" class="btn btn-blue" style="display:none;" onclick="abrirNavegador('destino')">IR PARA O DESTINO</button>
-            
-            <button id="btn-acao-corrida" class="btn btn-yellow" onclick="iniciarCorrida()">PASSAGEIRO EMBARCOU</button>
-            <div id="area-finalizar" style="display: none;">
-                <button class="btn btn-red" onclick="finalizarCorrida()">FINALIZAR E RECEBER</button>
-            </div>
-        </div>
+        <p style="font-size: 10px; color: #aaa; margin-top: 20px;">Mantenha o GPS ativo para receber corridas</p>
     </div>
 
     <script>
-    // CONFIGURAÇÃO FIREBASE
+    // --- CONFIGURAÇÃO DO SEU FIREBASE ---
     const firebaseConfig = { databaseURL: "https://meuappmobilidade-a6f93-default-rtdb.firebaseio.com" };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    let motorista = null;
+    // Dados do motorista (Simulado - No futuro virá do seu banco de cadastros)
+    let motorista = { 
+        chave: "moto_01", 
+        nome: "Adriano Piloto",
+        carro: "Pinda Car 01"
+    };
+
     let isOnline = false;
-    let idCorrida = null;
-    let dadosCorrida = null;
-    let watchID = null; // ID do rastreador GPS
+    let watchID = null;
 
-    // --- FUNÇÃO DE RASTREAMENTO GPS ---
-    function iniciarRastreio() {
-        if ("geolocation" in navigator) {
-            watchID = navigator.geolocation.watchPosition((position) => {
-                const lat = position.coords.latitude;
-                const lng = position.coords.longitude;
+    // --- FUNÇÃO DE LOGIN SIMPLES ---
+    function fazerLogin() {
+        const user = document.getElementById('l-email').value;
+        const pass = document.getElementById('l-senha').value;
 
-                if (isOnline && motorista) {
-                    // Atualiza no banco para a Central Suprema ver
-                    db.ref('motoristas_online/' + motorista.chave).update({
-                        lat: lat,
-                        lng: lng,
-                        nome: motorista.nome,
-                        status: idCorrida ? "Em Viagem" : "Disponível",
-                        ultimaAtiv: Date.now()
-                    });
-                }
-            }, (err) => {
-                console.error("Erro GPS: ", err);
-            }, {
-                enableHighAccuracy: true,
-                maximumAge: 0
-            });
+        if(user === "1" && pass === "1") {
+            document.getElementById('nome-exibicao').innerText = motorista.nome;
+            mostrarTela('m-status');
+        } else {
+            alert("Usuário ou senha incorretos!");
         }
     }
 
-    function pararRastreio() {
-        if (watchID) navigator.geolocation.clearWatch(watchID);
-        if (motorista) db.ref('motoristas_online/' + motorista.chave).remove();
-    }
-
-    // --- CONTROLE DE STATUS ---
+    // --- CONTROLE DE ONLINE / OFFLINE ---
     function toggleOnline() {
         isOnline = !isOnline;
         const btn = document.getElementById('btn-toggle');
         const badge = document.getElementById('badge-status');
 
         if(isOnline) {
-            btn.innerText = "FICAR OFFLINE"; btn.className = "btn btn-red";
-            badge.innerText = "Status: Online"; badge.className = "status-badge status-on";
-            iniciarRastreio(); // Começa a mandar o GPS
-            ouvirCorridas();
+            btn.innerText = "FICAR OFFLINE";
+            btn.className = "btn btn-red";
+            badge.innerText = "Status: Online e Rastreando";
+            badge.className = "status-badge status-on";
+            startRastreio(); // Inicia o GPS
         } else {
-            btn.innerText = "FICAR ONLINE"; btn.className = "btn btn-yellow";
-            badge.innerText = "Status: Offline"; badge.className = "status-badge status-off";
-            pararRastreio(); // Para de mandar o GPS
-            db.ref('corridas_abertas').off();
+            btn.innerText = "FICAR ONLINE";
+            btn.className = "btn btn-yellow";
+            badge.innerText = "Status: Offline";
+            badge.className = "status-badge status-off";
+            stopRastreio(); // Para o GPS
         }
     }
 
-    function fazerLogin() {
-        const email = document.getElementById('l-email').value;
-        const senha = document.getElementById('l-senha').value;
-        // Simulação de Login - No futuro buscar do DB
-        motorista = { chave: "moto_01", nome: "Adriano Piloto", veiculo: "Fiat Uno - ABC1234" };
-        document.getElementById('nome-motorista').innerText = motorista.nome;
-        document.getElementById('info-veiculo').innerText = motorista.veiculo;
-        mostrarTela('m-status');
+    // --- SISTEMA DE RASTREAMENTO REAL ---
+    function startRastreio() {
+        if ("geolocation" in navigator) {
+            // watchPosition envia atualizações sempre que o motorista se mover
+            watchID = navigator.geolocation.watchPosition((pos) => {
+                const lat = pos.coords.latitude;
+                const lng = pos.coords.longitude;
+
+                console.log("GPS Atualizado:", lat, lng);
+
+                // Grava na pasta que a Central Suprema monitora
+                db.ref('motoristas_online/' + motorista.chave).set({
+                    nome: motorista.nome,
+                    lat: lat,
+                    lng: lng,
+                    status: "Online",
+                    ultimaAtualizacao: Date.now()
+                });
+
+            }, (err) => {
+                alert("Erro ao acessar GPS. Verifique as permissões do navegador.");
+                console.error(err);
+                toggleOnline(); // Volta para offline se der erro
+            }, {
+                enableHighAccuracy: true, // Força o uso do GPS real
+                maximumAge: 0,
+                timeout: 10000
+            });
+        } else {
+            alert("Seu celular não suporta Geolocalização.");
+        }
     }
 
-    function ouvirCorridas() {
-        db.ref('corridas_abertas').on('value', snap => {
-            if(!isOnline || idCorrida) return;
-            const corridas = snap.val();
-            for(let id in corridas) {
-                if(corridas[id].status === "Aguardando") {
-                    idCorrida = id;
-                    dadosCorrida = corridas[id];
-                    exibirChamada();
-                    break;
-                }
-            }
-        });
+    function stopRastreio() {
+        if(watchID) {
+            navigator.geolocation.clearWatch(watchID);
+            watchID = null;
+        }
+        // Remove o motorista do mapa na central ao ficar offline
+        db.ref('motoristas_online/' + motorista.chave).remove();
     }
 
-    function exibirChamada() {
-        document.getElementById('detalhes-chamada').innerHTML = `
-            <b>CLIENTE:</b> ${dadosCorrida.cliente}<br>
-            <b>DE:</b> ${dadosCorrida.origem}<br>
-            <b>PARA:</b> ${dadosCorrida.destino}<br><br>
-            <b style="font-size:18px; color:var(--success)">VALOR: R$ ${dadosCorrida.valor}</b>
-        `;
-        mostrarTela('m-chamada');
-    }
-
-    function aceitarCorrida() {
-        db.ref('corridas_abertas/' + idCorrida).update({
-            status: "Aceita",
-            nomeMotorista: motorista.nome,
-            idMotorista: motorista.chave
-        }).then(() => {
-            document.getElementById('pass-nome').innerText = dadosCorrida.cliente;
-            document.getElementById('pass-rota').innerText = "Destino: " + dadosCorrida.destino;
-            document.getElementById('pass-valor').innerText = "R$ " + dadosCorrida.valor;
-            mostrarTela('m-viagem');
-        });
-    }
-
-    function iniciarCorrida() {
-        document.getElementById('btn-gps-busca').style.display = "none";
-        document.getElementById('btn-gps-destino').style.display = "block";
-        document.getElementById('btn-acao-corrida').style.display = "none";
-        document.getElementById('area-finalizar').style.display = "block";
-    }
-
-    function finalizarCorrida() {
-        db.ref('corridas_abertas/' + idCorrida).update({ status: "Finalizada" }).then(() => {
-            idCorrida = null;
-            mostrarTela('m-status');
-        });
-    }
-
-    function abrirNavegador(tipo) {
-        const local = (tipo === 'origem') ? dadosCorrida.origem : dadosCorrida.destino;
-        window.open("https://www.google.com/maps/dir/?api=1&destination=" + encodeURIComponent(local));
-    }
-
-    function logout() { location.reload(); }
     function mostrarTela(id) {
         document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
         document.getElementById(id).classList.add('active');
     }
+
+    function logout() {
+        stopRastreio();
+        location.reload();
+    }
+
+    // Evita que o app feche acidentalmente se estiver em modo APK
+    window.onbeforeunload = function() {
+        if(isOnline) return "Você está online. Deseja realmente sair?";
+    };
+
     </script>
 </body>
 </html>
