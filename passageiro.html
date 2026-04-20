@@ -18,47 +18,30 @@
         .screen { display: none; height: 100vh; flex-direction: column; }
         .active { display: flex; }
         
-        .auth-container { flex: 1; display: flex; align-items: center; justify-content: center; padding: 20px; overflow-y: auto; }
-        .auth-card { background: white; padding: 25px; border-radius: 20px; width: 100%; max-width: 400px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        #map { flex: 1; width: 100%; z-index: 1; }
+        
+        .ride-panel { background: white; padding: 20px; border-radius: 25px 25px 0 0; box-shadow: 0 -5px 15px rgba(0,0,0,0.1); z-index: 1000; position: relative; }
         
         input, select { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 15px; }
         .btn-main { background: var(--pindavai); color: #000; border: none; width: 100%; padding: 15px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 16px; margin-top: 10px; }
         
-        #map { flex: 1; width: 100%; }
-        .ride-panel { background: white; padding: 20px; border-radius: 25px 25px 0 0; box-shadow: 0 -5px 15px rgba(0,0,0,0.1); z-index: 1000; max-height: 50vh; overflow-y: auto; }
-        
         #status-monitor { display: none; background: var(--dark); color: white; padding: 20px; border-radius: 20px 20px 0 0; position: fixed; bottom: 0; width: 100%; box-sizing: border-box; z-index: 2000; text-align: center; }
         .driver-info { background: #333; padding: 15px; border-radius: 10px; margin-top: 10px; text-align: left; border-left: 5px solid var(--pindavai); }
         
-        .stop-row { display: flex; align-items: center; gap: 5px; }
         .price-tag { background: #e8f5e9; color: #2e7d32; padding: 12px; border-radius: 10px; text-align: center; font-size: 18px; font-weight: bold; margin: 10px 0; display: none; }
+        
+        /* Estilo do ícone do carro no mapa */
+        .car-icon-style { font-size: 22px; text-shadow: 0 0 5px rgba(0,0,0,0.3); transition: all 0.5s ease; }
     </style>
 </head>
 <body>
 
-    <div id="screen-login" class="screen active">
-        <div class="auth-container">
-            <div class="auth-card">
-                <h1>PINDAVAÍ</h1>
-                <input type="email" id="login-email" placeholder="E-mail">
-                <input type="password" id="login-senha" placeholder="Senha">
-                <button class="btn-main" onclick="acaoLogin()">ENTRAR</button>
-                <p onclick="navegar('screen-cadastro')" style="cursor:pointer; color:blue; margin-top:20px;">Criar Conta</p>
-            </div>
-        </div>
-    </div>
-
-    <div id="screen-cadastro" class="screen">
-        <div class="auth-container">
-            <div class="auth-card">
-                <h3>Cadastro</h3>
-                <input type="text" id="cad-nome" placeholder="Nome Completo">
-                <input type="text" id="cad-cpf" placeholder="CPF">
-                <input type="email" id="cad-email" placeholder="E-mail">
-                <input type="password" id="cad-senha" placeholder="Senha">
-                <button class="btn-main" onclick="acaoCadastro()">FINALIZAR</button>
-                <p onclick="navegar('screen-login')" style="cursor:pointer; margin-top:15px;">Voltar</p>
-            </div>
+    <div id="screen-login" class="screen active" style="align-items:center; justify-content:center;">
+        <div style="background:white; padding:30px; border-radius:20px; width:80%; max-width:350px; text-align:center;">
+            <h1>PINDAVAÍ</h1>
+            <input type="email" id="login-email" placeholder="E-mail">
+            <input type="password" id="login-senha" placeholder="Senha">
+            <button class="btn-main" onclick="acaoLogin()">ENTRAR</button>
         </div>
     </div>
 
@@ -68,68 +51,33 @@
         <div id="panel-request" class="ride-panel">
             <div id="user-welcome" style="font-weight: bold; margin-bottom: 10px;"></div>
             <input type="text" id="inp-partida" placeholder="📍 Local de partida">
-            <div id="container-paradas"></div>
-            <button onclick="adicionarParada()" style="background:none; border:none; color:blue; font-size:12px; cursor:pointer; margin-bottom:10px;">+ Adicionar Parada</button>
             <input type="text" id="inp-destino" placeholder="🏁 Destino Final" onchange="calcularValor()">
-            <select id="select-pagamento" onchange="calcularValor()">
-                <option value="">Forma de Pagamento</option>
+            <select id="select-pagamento">
                 <option value="Dinheiro">Dinheiro</option>
-                <option value="Cartão (Maquininha)">Cartão (Maquininha)</option>
                 <option value="Pix">Pix</option>
             </select>
             <div id="display-preco" class="price-tag"></div>
-            <button class="btn-main" id="btn-chamar" onclick="solicitarCorrida()">CHAMAR PINDAVAÍ</button>
+            <button class="btn-main" onclick="solicitarCorrida()">SOLICITAR VIAGEM</button>
         </div>
 
         <div id="status-monitor">
-            <div id="status-msg">Buscando motoristas...</div>
+            <div id="status-msg">Procurando motoristas...</div>
             <div id="info-motorista-box" class="driver-info" style="display:none;">
-                <b style="color:var(--pindavai)">MOTORISTA A CAMINHO</b><br>
+                <b style="color:var(--pindavai)">MOTORISTA ACEITOU!</b><br>
                 <span id="nome-mot">---</span><br>
                 <span id="carro-mot">---</span> | <b id="placa-mot">---</b>
             </div>
-            <button id="btn-cancelar" class="btn-main" style="background:#ff4444; color:white; margin-top:15px;" onclick="cancelarCorrida()">CANCELAR CORRIDA</button>
+            <button id="btn-cancelar" class="btn-main" style="background:#dc3545; color:white;" onclick="cancelarCorrida()">CANCELAR</button>
         </div>
     </div>
 
     <script>
-        const firebaseConfig = {
-            databaseURL: "https://meuappmobilidade-a6f93-default-rtdb.firebaseio.com/"
-        };
+        const firebaseConfig = { databaseURL: "https://meuappmobilidade-a6f93-default-rtdb.firebaseio.com/" };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
-        let paradasContador = 0;
-        let idCorridaAtual = null;
-        let currentUser = null;
-
-        function navegar(id) {
-            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-            document.getElementById(id).classList.add('active');
-        }
-
-        function adicionarParada() {
-            paradasContador++;
-            const container = document.getElementById('container-paradas');
-            const div = document.createElement('div');
-            div.className = 'stop-row';
-            div.id = 'stop-' + paradasContador;
-            div.innerHTML = `<input type="text" placeholder="🛑 Parada" class="inp-parada"><button onclick="removerParada(${paradasContador})" style="border:none; background:none; color:red;">X</button>`;
-            container.appendChild(div);
-        }
-
-        function removerParada(id) { document.getElementById('stop-' + id).remove(); calcularValor(); }
-
-        function calcularValor() {
-            const partida = document.getElementById('inp-partida').value;
-            const destino = document.getElementById('inp-destino').value;
-            if(partida && destino) {
-                let total = 15.00 + (document.querySelectorAll('.inp-parada').length * 2.00);
-                const display = document.getElementById('display-preco');
-                display.innerText = "Valor Estimado: R$ " + total.toFixed(2);
-                display.style.display = "block";
-            }
-        }
+        let map, currentUser, idCorridaAtual;
+        let marcadoresMotoristas = {}; // Para guardar os carrinhos no mapa
 
         function acaoLogin() {
             const email = document.getElementById('login-email').value;
@@ -140,22 +88,109 @@
                     const user = snap.val()[idUser];
                     if(user.senha === senha) {
                         currentUser = { ...user, id: idUser };
-                        localStorage.setItem('pindavai_user', JSON.stringify(currentUser));
                         document.getElementById('user-welcome').innerText = "Olá, " + user.nome;
-                        navegar('screen-app');
+                        document.getElementById('screen-login').classList.remove('active');
+                        document.getElementById('screen-app').classList.add('active');
                         initMap();
-                        verificarCorridaAtiva(); // NOVO: Tenta recuperar corrida ao logar
+                        monitorarMotoristasNoMapa(); // Começa a ver os carros
+                        verificarCorridaAtiva();
                     } else alert("Senha incorreta");
                 } else alert("Usuário não encontrado");
             });
         }
 
+        function initMap() {
+            map = L.map('map').setView([-22.9255, -45.4548], 14);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+        }
+
+        // --- MOSTRAR MOTORISTAS NO MAPA DO PASSAGEIRO ---
+        function monitorarMotoristasNoMapa() {
+            db.ref('localizacao_motoristas').on('value', snap => {
+                const motoristas = snap.val();
+                
+                // Limpa carros que saíram do ar
+                for (let id in marcadoresMotoristas) {
+                    if (!motoristas || !motoristas[id]) {
+                        map.removeLayer(marcadoresMotoristas[id]);
+                        delete marcadoresMotoristas[id];
+                    }
+                }
+
+                if(!motoristas) return;
+
+                for (let id in motoristas) {
+                    const m = motoristas[id];
+                    // Cor: Verde se estiver livre, Vermelho se estiver ocupado
+                    const cor = (m.status === "disponivel") ? "#28a745" : "#dc3545";
+
+                    if (marcadoresMotoristas[id]) {
+                        // Atualiza posição suavemente
+                        marcadoresMotoristas[id].setLatLng([m.lat, m.lng]);
+                        const el = marcadoresMotoristas[id].getElement();
+                        if(el) el.querySelector('i').style.color = cor;
+                    } else {
+                        // Cria novo ícone de carro
+                        const carIcon = L.divIcon({
+                            html: `<i class="fas fa-car car-icon-style" style="color: ${cor}"></i>`,
+                            className: 'dummy',
+                            iconSize: [24, 24], iconAnchor: [12, 12]
+                        });
+                        marcadoresMotoristas[id] = L.marker([m.lat, m.lng], { icon: carIcon }).addTo(map);
+                    }
+                }
+            });
+        }
+
+        function solicitarCorrida() {
+            const partida = document.getElementById('inp-partida').value;
+            const destino = document.getElementById('inp-destino').value;
+            if(!partida || !destino) return alert("Preencha os locais!");
+
+            const novaCorrida = {
+                passageiroNome: currentUser.nome,
+                partida, destino,
+                status: "pendente",
+                valor: document.getElementById('display-preco').innerText || "A combinar"
+            };
+
+            const ref = db.ref('corridas_pendentes').push(novaCorrida);
+            idCorridaAtual = ref.key;
+            
+            document.getElementById('panel-request').style.display = "none";
+            document.getElementById('status-monitor').style.display = "block";
+            monitorarCorrida();
+        }
+
+        function monitorarCorrida() {
+            db.ref('corridas_pendentes/' + idCorridaAtual).on('value', snap => {
+                const c = snap.val();
+                if(!c) return;
+
+                const statusMsg = document.getElementById('status-msg');
+                const infoBox = document.getElementById('info-motorista-box');
+
+                if(c.status === "A caminho") {
+                    statusMsg.innerText = "MOTORISTA A CAMINHO!";
+                    statusMsg.style.color = "#ffcc00";
+                    infoBox.style.display = "block";
+                    document.getElementById('nome-mot').innerText = c.motoristaNome;
+                    document.getElementById('placa-mot').innerText = c.motoristaPlaca;
+                } else if(c.status === "Em Viagem") {
+                    statusMsg.innerText = "EM VIAGEM...";
+                    statusMsg.style.color = "#28a745";
+                } else if(c.status === "Finalizada" || c.status === "Cancelada") {
+                    alert("Corrida encerrada.");
+                    location.reload();
+                }
+            });
+        }
+
         function verificarCorridaAtiva() {
             db.ref('corridas_pendentes').once('value', snap => {
-                const corridas = snap.val();
-                for(let id in corridas) {
-                    const c = corridas[id];
-                    if(c.passageiroNome === currentUser.nome && c.status !== "Finalizada" && c.status !== "Cancelada") {
+                const dados = snap.val();
+                for(let id in dados) {
+                    if(dados[id].passageiroNome === currentUser.nome && dados[id].status !== "Finalizada" && dados[id].status !== "Cancelada") {
                         idCorridaAtual = id;
                         document.getElementById('panel-request').style.display = "none";
                         document.getElementById('status-monitor').style.display = "block";
@@ -166,73 +201,16 @@
             });
         }
 
-        function solicitarCorrida() {
-            const partida = document.getElementById('inp-partida').value;
-            const destino = document.getElementById('inp-destino').value;
-            const pagamento = document.getElementById('select-pagamento').value;
-            const preco = document.getElementById('display-preco').innerText;
-
-            if(!partida || !destino || !pagamento) return alert("Preencha todos os dados!");
-
-            const corrida = {
-                passageiroNome: currentUser.nome,
-                partida, destino, pagamento, valor: preco,
-                status: "pendente",
-                data: new Date().toISOString()
-            };
-
-            const ref = db.ref('corridas_pendentes').push(corrida);
-            idCorridaAtual = ref.key;
-
-            document.getElementById('panel-request').style.display = "none";
-            document.getElementById('status-monitor').style.display = "block";
-            
-            monitorarCorrida();
-        }
-
-        function monitorarCorrida() {
-            db.ref('corridas_pendentes/' + idCorridaAtual).on('value', snap => {
-                const dados = snap.val();
-                if(!dados) return;
-
-                const statusMsg = document.getElementById('status-msg');
-                const infoBox = document.getElementById('info-motorista-box');
-
-                if(dados.status === "A caminho") {
-                    statusMsg.innerText = "MOTORISTA A CAMINHO!";
-                    statusMsg.style.color = "#ffcc00";
-                    infoBox.style.display = "block";
-                    document.getElementById('nome-mot').innerText = "Motorista: " + dados.motoristaNome;
-                    document.getElementById('carro-mot').innerText = "Carro: " + (dados.motoristaModelo || "Veículo");
-                    document.getElementById('placa-mot').innerText = dados.motoristaPlaca || "---";
-                    document.getElementById('btn-cancelar').style.display = "none";
-                } 
-                else if(dados.status === "Em Viagem") {
-                    statusMsg.innerText = "VOCÊ ESTÁ EM VIAGEM";
-                    statusMsg.style.color = "#28a745";
-                    document.getElementById('btn-cancelar').style.display = "none";
-                }
-                else if(dados.status === "Finalizada") {
-                    alert("Viagem Finalizada! Obrigado por usar o Pindavaí.");
-                    location.reload();
-                }
-                else if(dados.status === "Cancelada") {
-                    alert("A viagem foi cancelada.");
-                    location.reload();
-                }
-            });
-        }
-
         function cancelarCorrida() {
-            if(confirm("Deseja realmente cancelar?")) {
+            if(confirm("Cancelar viagem?")) {
                 db.ref('corridas_pendentes/' + idCorridaAtual).update({ status: "Cancelada" })
                 .then(() => location.reload());
             }
         }
 
-        function initMap() {
-            const map = L.map('map').setView([-22.9255, -45.4548], 14);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+        function calcularValor() {
+            document.getElementById('display-preco').innerText = "R$ 15,00";
+            document.getElementById('display-preco').style.display = "block";
         }
     </script>
 </body>
