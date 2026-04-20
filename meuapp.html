@@ -27,34 +27,17 @@
 
     <div id="m-login" class="screen active">
         <div class="card">
-            <h1 style="margin-bottom:5px;">PINDAVAÍ</h1>
-            <p style="color:#666; margin-bottom:15px;">Acesso Motorista</p>
+            <h1>PINDAVAÍ</h1>
             <input type="email" id="l-email" placeholder="E-mail">
             <input type="password" id="l-senha" placeholder="Senha">
             <button class="btn btn-yellow" onclick="fazerLogin()">ENTRAR</button>
-            <p onclick="mostrarTela('m-cadastro')" style="cursor:pointer; color:blue; margin-top:20px;">Quero ser motorista</p>
-        </div>
-    </div>
-
-    <div id="m-cadastro" class="screen">
-        <div class="card">
-            <h3>Cadastro de Motorista</h3>
-            <input type="text" id="c-nome" placeholder="Nome Completo">
-            <input type="text" id="c-tel" placeholder="Telefone / WhatsApp">
-            <input type="text" id="c-cpf" placeholder="CPF">
-            <input type="text" id="c-modelo" placeholder="Modelo do Carro">
-            <input type="text" id="c-placa" placeholder="Placa do Veículo">
-            <input type="email" id="c-email" placeholder="E-mail">
-            <input type="password" id="c-senha" placeholder="Crie uma Senha">
-            <button class="btn btn-yellow" onclick="acaoCadastroMotorista()">FINALIZAR CADASTRO</button>
-            <p onclick="mostrarTela('m-login')" style="cursor:pointer; margin-top:15px;">Voltar</p>
         </div>
     </div>
 
     <div id="m-status" class="screen">
         <div class="card">
             <h3 id="nome-exibicao">---</h3>
-            <div id="status-text" style="margin-bottom:15px; font-weight:bold; color:red;">VOCÊ ESTÁ OFFLINE</div>
+            <div id="status-text" style="margin-bottom:15px; font-weight:bold; color:#ffcc00;">LOGADO - OFFLINE (AMARELO)</div>
             <button id="btn-toggle" class="btn btn-yellow" onclick="toggleOnline()">FICAR ONLINE</button>
         </div>
     </div>
@@ -62,7 +45,7 @@
     <div id="m-chamada" class="screen" style="background: rgba(0,0,0,0.95);">
         <div class="card">
             <h2 style="color: #ff6600">🔔 NOVA VIAGEM!</h2>
-            <div id="detalhes-chamada" style="text-align: left; margin: 20px 0; line-height: 1.6;"></div>
+            <div id="detalhes-chamada" style="text-align: left; margin: 20px 0;"></div>
             <button class="btn btn-yellow" onclick="aceitarCorrida()">ACEITAR CORRIDA</button>
             <button class="btn" style="background: #eee;" onclick="recusarCorrida()">RECUSAR</button>
         </div>
@@ -70,15 +53,10 @@
 
     <div id="m-viagem" class="screen">
         <div class="card">
-            <h2 id="titulo-viagem" style="color:var(--blue)">INDO BUSCAR</h2>
-            <p style="font-size: 11px; color: #888; margin:0">ENDEREÇO ATUAL:</p>
+            <h2 id="titulo-viagem">INDO BUSCAR</h2>
             <span id="info-viagem" class="destaque">---</span>
-            
-            <button class="btn btn-blue" onclick="abrirGPS()">
-                <i class="fas fa-map-marked-alt"></i> ABRIR NO MAPS
-            </button>
-
-            <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;">
+            <button class="btn btn-blue" onclick="abrirGPS()">ABRIR GPS</button>
+            <hr>
             <button id="btn-proximo" class="btn btn-yellow" onclick="proximaEtapa()">JÁ RECOLHI O PASSAGEIRO</button>
             <button id="btn-finalizar" class="btn btn-red" style="display:none;" onclick="finalizarCorrida()">FINALIZAR CORRIDA</button>
         </div>
@@ -89,24 +67,8 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    let dadosMotorista = null;
-    let motoristaId = null;
-    let watchID = null;
-    let isOnline = false, idCorridaAtiva = null, dadosCorridaAtual = null, etapaViagem = "buscar";
-    const somAlerta = document.getElementById('audioNotificacao');
-
-    async function acaoCadastroMotorista() {
-        const nome = document.getElementById('c-nome').value;
-        const telefone = document.getElementById('c-tel').value;
-        const cpf = document.getElementById('c-cpf').value;
-        const modelo = document.getElementById('c-modelo').value;
-        const placa = document.getElementById('c-placa').value;
-        const email = document.getElementById('c-email').value;
-        const senha = document.getElementById('c-senha').value;
-        if(!nome || !telefone || !email) return alert("Preencha os dados obrigatórios!");
-        await db.ref('motoristas').push({ nome, telefone, cpf, modelo, placa, email, senha, status: "ativo", nota: 5.0 });
-        alert("Cadastro realizado!"); mostrarTela('m-login');
-    }
+    let motoristaId = null, dadosMotorista = null, watchID = null;
+    let isOnline = false, idCorridaAtiva = null, etapaViagem = "buscar";
 
     function fazerLogin() {
         const email = document.getElementById('l-email').value;
@@ -114,97 +76,55 @@
         db.ref('motoristas').orderByChild('email').equalTo(email).once('value', snap => {
             if(snap.exists()){
                 motoristaId = Object.keys(snap.val())[0];
-                const user = snap.val()[motoristaId];
-                if(user.senha === senha) {
-                    dadosMotorista = user;
-                    document.getElementById('nome-exibicao').innerText = "Olá, " + user.nome;
-                    // VERIFICA SE JÁ TINHA CORRIDA ANTES DE IR PRO STATUS
+                dadosMotorista = snap.val()[motoristaId];
+                if(dadosMotorista.senha === senha) {
+                    document.getElementById('nome-exibicao').innerText = "Olá, " + dadosMotorista.nome;
+                    iniciarRastreamento(); // Começa a enviar localização (Amarelo)
                     verificarCorridaAtiva();
                 } else alert("Senha incorreta");
-            } else alert("Motorista não encontrado");
-        });
-    }
-
-    // --- NOVA FUNÇÃO: RECUPERAR ESTADO DA CORRIDA ---
-    function verificarCorridaAtiva() {
-        db.ref('corridas_pendentes').once('value', snap => {
-            const corridas = snap.val();
-            let encontrou = false;
-            
-            for(let id in corridas) {
-                const c = corridas[id];
-                // Verifica se eu sou o motorista e a corrida não terminou
-                if(c.motoristaId === motoristaId && c.status !== "Finalizada" && c.status !== "Cancelada") {
-                    idCorridaAtiva = id;
-                    dadosCorridaAtual = c;
-                    isOnline = true; 
-                    encontrou = true;
-
-                    if(c.status === "A caminho") {
-                        etapaViagem = "buscar";
-                        document.getElementById('titulo-viagem').innerText = "INDO BUSCAR PASSAGEIRO";
-                        document.getElementById('info-viagem').innerText = c.partida;
-                        document.getElementById('btn-proximo').style.display = "flex";
-                        document.getElementById('btn-finalizar').style.display = "none";
-                    } else if(c.status === "Em Viagem") {
-                        etapaViagem = "levar";
-                        document.getElementById('titulo-viagem').innerText = "LEVANDO AO DESTINO";
-                        document.getElementById('info-viagem').innerText = c.destino;
-                        document.getElementById('btn-proximo').style.display = "none";
-                        document.getElementById('btn-finalizar').style.display = "flex";
-                    }
-                    
-                    iniciarRastreamento();
-                    mostrarTela('m-viagem');
-                    break;
-                }
-            }
-            if(!encontrou) mostrarTela('m-status');
+            } else alert("Não encontrado");
         });
     }
 
     function atualizarLocalizacaoNoBanco(lat, lng) {
-        if(!motoristaId || !isOnline) return;
-        let statusMapa = idCorridaAtiva ? "ocupado" : "disponivel";
+        if(!motoristaId) return;
+        
+        // LÓGICA DAS 4 CORES
+        let statusMapa = "logado"; // Amarelo
+        if(isOnline) statusMapa = "disponivel"; // Verde
+        if(idCorridaAtiva) {
+            statusMapa = (etapaViagem === "buscar") ? "a_caminho" : "em_viagem"; // Vermelho ou Preto
+        }
+
         db.ref('localizacao_motoristas/' + motoristaId).set({
             nome: dadosMotorista.nome,
             placa: dadosMotorista.placa,
-            lat: lat,
-            lng: lng,
-            status: statusMapa
+            lat, lng, status: statusMapa
         });
     }
 
     function iniciarRastreamento() {
         if ("geolocation" in navigator) {
-            watchID = navigator.geolocation.watchPosition(position => {
-                atualizarLocalizacaoNoBanco(position.coords.latitude, position.coords.longitude);
-            }, error => console.log(error), { enableHighAccuracy: true });
+            watchID = navigator.geolocation.watchPosition(pos => {
+                atualizarLocalizacaoNoBanco(pos.coords.latitude, pos.coords.longitude);
+            }, null, { enableHighAccuracy: true });
         }
-    }
-
-    function pararRastreamento() {
-        if (watchID) navigator.geolocation.clearWatch(watchID);
-        if (motoristaId) db.ref('localizacao_motoristas/' + motoristaId).remove();
     }
 
     function toggleOnline() {
         isOnline = !isOnline;
         const btn = document.getElementById('btn-toggle');
-        const statusTxt = document.getElementById('status-text');
+        const txt = document.getElementById('status-text');
         if(isOnline) {
             btn.innerText = "FICAR OFFLINE"; btn.className = "btn btn-red";
-            statusTxt.innerText = "VOCÊ ESTÁ ONLINE - AGUARDANDO CORRIDAS";
-            statusTxt.style.color = "green";
-            iniciarRastreamento();
+            txt.innerText = "ONLINE - DISPONÍVEL (VERDE)"; txt.style.color = "green";
             ouvirCorridas();
         } else {
             btn.innerText = "FICAR ONLINE"; btn.className = "btn btn-yellow";
-            statusTxt.innerText = "VOCÊ ESTÁ OFFLINE";
-            statusTxt.style.color = "red";
-            pararRastreamento();
-            db.ref('corridas_pendentes').off();
+            txt.innerText = "LOGADO - OFFLINE (AMARELO)"; txt.style.color = "#ffcc00";
         }
+        // Atualiza cor no mapa imediatamente
+        navigator.geolocation.getCurrentPosition(pos => atualizarLocalizacaoNoBanco(pos.coords.latitude, pos.coords.longitude));
     }
 
     function ouvirCorridas() {
@@ -214,66 +134,55 @@
             for(let id in corridas) {
                 if(corridas[id].status === "pendente") {
                     idCorridaAtiva = id;
-                    dadosCorridaAtual = corridas[id];
-                    exibirChamada(corridas[id]);
+                    document.getElementById('detalhes-chamada').innerHTML = `<b>De:</b> ${corridas[id].partida}<br><b>Para:</b> ${corridas[id].destino}`;
+                    document.getElementById('audioNotificacao').play();
+                    mostrarTela('m-chamada');
                     break;
                 }
             }
         });
     }
 
-    function exibirChamada(dados) {
-        somAlerta.play();
-        document.getElementById('detalhes-chamada').innerHTML = `
-            <b>PASSAGEIRO:</b> ${dados.passageiroNome}<br>
-            <b>PARTIDA:</b> ${dados.partida}<br>
-            <b>DESTINO:</b> ${dados.destino}<br>
-            <h3 style="margin-top:10px; color:green;">${dados.valor}</h3>
-        `;
-        mostrarTela('m-chamada');
-    }
-
     function aceitarCorrida() {
-        somAlerta.pause();
+        document.getElementById('audioNotificacao').pause();
         etapaViagem = "buscar";
-        document.getElementById('titulo-viagem').innerText = "INDO BUSCAR PASSAGEIRO";
-        document.getElementById('info-viagem').innerText = dadosCorridaAtual.partida;
-        document.getElementById('btn-proximo').style.display = "flex";
-        document.getElementById('btn-finalizar').style.display = "none";
-        
         db.ref('corridas_pendentes/' + idCorridaAtiva).update({ 
-            status: "A caminho", 
-            motoristaId: motoristaId,
-            motoristaNome: dadosMotorista.nome,
-            motoristaPlaca: dadosMotorista.placa 
+            status: "A caminho", motoristaId, motoristaNome: dadosMotorista.nome, motoristaPlaca: dadosMotorista.placa 
         });
+        document.getElementById('titulo-viagem').innerText = "INDO BUSCAR (VERMELHO)";
         mostrarTela('m-viagem');
     }
 
     function proximaEtapa() {
         etapaViagem = "levar";
-        document.getElementById('titulo-viagem').innerText = "LEVANDO AO DESTINO";
-        document.getElementById('info-viagem').innerText = dadosCorridaAtual.destino;
+        db.ref('corridas_pendentes/' + idCorridaAtiva).update({ status: "Em Viagem" });
+        document.getElementById('titulo-viagem').innerText = "EM VIAGEM (PRETO)";
         document.getElementById('btn-proximo').style.display = "none";
         document.getElementById('btn-finalizar').style.display = "flex";
-        db.ref('corridas_pendentes/' + idCorridaAtiva).update({ status: "Em Viagem" });
-    }
-
-    function abrirGPS() {
-        let local = (etapaViagem === "buscar") ? dadosCorridaAtual.partida : dadosCorridaAtual.destino;
-        window.open("https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(local), "_blank");
     }
 
     function finalizarCorrida() {
         db.ref('corridas_pendentes/' + idCorridaAtiva).update({ status: "Finalizada" }).then(() => {
-            alert("Viagem Finalizada!");
             idCorridaAtiva = null;
             mostrarTela('m-status');
         });
     }
 
-    function recusarCorrida() { somAlerta.pause(); idCorridaAtiva = null; mostrarTela('m-status'); }
-    
+    function verificarCorridaAtiva() {
+        db.ref('corridas_pendentes').once('value', snap => {
+            const corridas = snap.val();
+            for(let id in corridas) {
+                if(corridas[id].motoristaId === motoristaId && corridas[id].status !== "Finalizada") {
+                    idCorridaAtiva = id;
+                    etapaViagem = (corridas[id].status === "Em Viagem") ? "levar" : "buscar";
+                    mostrarTela('m-viagem');
+                    break;
+                }
+            }
+            if(!idCorridaAtiva) mostrarTela('m-status');
+        });
+    }
+
     function mostrarTela(id) { 
         document.querySelectorAll('.screen').forEach(s => s.classList.remove('active')); 
         document.getElementById(id).classList.add('active'); 
