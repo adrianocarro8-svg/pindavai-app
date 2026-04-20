@@ -42,7 +42,7 @@
             <input type="text" id="c-nome" placeholder="Nome Completo">
             <input type="text" id="c-tel" placeholder="Telefone / WhatsApp">
             <input type="text" id="c-cpf" placeholder="CPF">
-            <input type="text" id="c-modelo" placeholder="Modelo do Carro (ex: Onix)">
+            <input type="text" id="c-modelo" placeholder="Modelo do Carro">
             <input type="text" id="c-placa" placeholder="Placa do Veículo">
             <input type="email" id="c-email" placeholder="E-mail">
             <input type="password" id="c-senha" placeholder="Crie uma Senha">
@@ -118,17 +118,54 @@
                 if(user.senha === senha) {
                     dadosMotorista = user;
                     document.getElementById('nome-exibicao').innerText = "Olá, " + user.nome;
-                    mostrarTela('m-status');
+                    // VERIFICA SE JÁ TINHA CORRIDA ANTES DE IR PRO STATUS
+                    verificarCorridaAtiva();
                 } else alert("Senha incorreta");
             } else alert("Motorista não encontrado");
         });
     }
 
+    // --- NOVA FUNÇÃO: RECUPERAR ESTADO DA CORRIDA ---
+    function verificarCorridaAtiva() {
+        db.ref('corridas_pendentes').once('value', snap => {
+            const corridas = snap.val();
+            let encontrou = false;
+            
+            for(let id in corridas) {
+                const c = corridas[id];
+                // Verifica se eu sou o motorista e a corrida não terminou
+                if(c.motoristaId === motoristaId && c.status !== "Finalizada" && c.status !== "Cancelada") {
+                    idCorridaAtiva = id;
+                    dadosCorridaAtual = c;
+                    isOnline = true; 
+                    encontrou = true;
+
+                    if(c.status === "A caminho") {
+                        etapaViagem = "buscar";
+                        document.getElementById('titulo-viagem').innerText = "INDO BUSCAR PASSAGEIRO";
+                        document.getElementById('info-viagem').innerText = c.partida;
+                        document.getElementById('btn-proximo').style.display = "flex";
+                        document.getElementById('btn-finalizar').style.display = "none";
+                    } else if(c.status === "Em Viagem") {
+                        etapaViagem = "levar";
+                        document.getElementById('titulo-viagem').innerText = "LEVANDO AO DESTINO";
+                        document.getElementById('info-viagem').innerText = c.destino;
+                        document.getElementById('btn-proximo').style.display = "none";
+                        document.getElementById('btn-finalizar').style.display = "flex";
+                    }
+                    
+                    iniciarRastreamento();
+                    mostrarTela('m-viagem');
+                    break;
+                }
+            }
+            if(!encontrou) mostrarTela('m-status');
+        });
+    }
+
     function atualizarLocalizacaoNoBanco(lat, lng) {
         if(!motoristaId || !isOnline) return;
-        // Status muda de cor na central: disponivel (verde), ocupado (vermelho)
         let statusMapa = idCorridaAtiva ? "ocupado" : "disponivel";
-        
         db.ref('localizacao_motoristas/' + motoristaId).set({
             nome: dadosMotorista.nome,
             placa: dadosMotorista.placa,
@@ -155,7 +192,6 @@
         isOnline = !isOnline;
         const btn = document.getElementById('btn-toggle');
         const statusTxt = document.getElementById('status-text');
-        
         if(isOnline) {
             btn.innerText = "FICAR OFFLINE"; btn.className = "btn btn-red";
             statusTxt.innerText = "VOCÊ ESTÁ ONLINE - AGUARDANDO CORRIDAS";
@@ -211,12 +247,6 @@
             motoristaNome: dadosMotorista.nome,
             motoristaPlaca: dadosMotorista.placa 
         });
-
-        // Atualiza status no mapa para Ocupado (Vermelho)
-        navigator.geolocation.getCurrentPosition(p => {
-            atualizarLocalizacaoNoBanco(p.coords.latitude, p.coords.longitude);
-        });
-
         mostrarTela('m-viagem');
     }
 
@@ -231,22 +261,19 @@
 
     function abrirGPS() {
         let local = (etapaViagem === "buscar") ? dadosCorridaAtual.partida : dadosCorridaAtual.destino;
-        window.location.href = "https://www.google.com/maps/dir/?api=1&destination=" + encodeURIComponent(local);
+        window.open("https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(local), "_blank");
     }
 
     function finalizarCorrida() {
         db.ref('corridas_pendentes/' + idCorridaAtiva).update({ status: "Finalizada" }).then(() => {
             alert("Viagem Finalizada!");
             idCorridaAtiva = null;
-            // Volta status no mapa para Disponível (Verde)
-            navigator.geolocation.getCurrentPosition(p => {
-                atualizarLocalizacaoNoBanco(p.coords.latitude, p.coords.longitude);
-            });
             mostrarTela('m-status');
         });
     }
 
     function recusarCorrida() { somAlerta.pause(); idCorridaAtiva = null; mostrarTela('m-status'); }
+    
     function mostrarTela(id) { 
         document.querySelectorAll('.screen').forEach(s => s.classList.remove('active')); 
         document.getElementById(id).classList.add('active'); 
