@@ -5,34 +5,29 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>PINDAVAI - Passageiro</title>
     
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-storage-compat.js"></script>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
     <style>
-        :root { --pindavai: #ffcc00; --dark: #1a1a1a; --gray: #f4f4f4; }
-        body, html { margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; height: 100%; background: var(--gray); overflow-x: hidden; }
+        :root { --pindavai: #ffcc00; --dark: #1a1a1a; }
+        body, html { margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; height: 100%; background: #f4f4f4; }
         .screen { display: none; min-height: 100vh; width: 100%; flex-direction: column; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box; }
         .active { display: flex; }
         .auth-card { background: white; padding: 25px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 400px; text-align: center; }
         input { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
         .btn-main { background: var(--pindavai); color: #000; border: none; width: 100%; padding: 15px; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 10px; font-size: 16px; }
-        .profile-upload { position: relative; width: 110px; height: 110px; margin: 0 auto 15px; }
-        .profile-img-preview { width: 110px; height: 110px; border-radius: 50%; object-fit: cover; border: 4px solid var(--pindavai); background: #eee; }
-        .camera-icon { position: absolute; bottom: 5px; right: 5px; background: var(--dark); color: white; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; border: 2px solid white; }
-        #map { flex: 1; width: 100%; height: 60vh; min-height: 300px; }
-        .map-panel { background: white; padding: 20px; border-radius: 25px 25px 0 0; box-shadow: 0 -5px 15px rgba(0,0,0,0.1); width: 100%; box-sizing: border-box; margin-top: -30px; z-index: 1000; }
+        #map { flex: 1; width: 100%; height: 60vh; }
+        .map-panel { background: white; padding: 20px; border-radius: 25px 25px 0 0; width: 100%; box-sizing: border-box; margin-top: -30px; z-index: 1000; box-shadow: 0 -5px 15px rgba(0,0,0,0.1); }
     </style>
 </head>
 <body>
 
     <div id="screen-login" class="screen active">
         <div class="auth-card">
-            <h1 style="color:var(--dark); margin-bottom:5px;">PINDAVAÍ</h1>
+            <h1 style="color:var(--dark);">PINDAVAÍ</h1>
             <input type="email" id="login-email" placeholder="Seu e-mail">
             <input type="password" id="login-senha" placeholder="Sua senha">
             <button class="btn-main" onclick="acaoLogin()">ENTRAR</button>
@@ -42,18 +37,13 @@
 
     <div id="screen-cadastro" class="screen">
         <div class="auth-card">
-            <h3>Criar Conta</h3>
-            <div class="profile-upload">
-                <img id="img-preview" class="profile-img-preview" src="https://cdn-icons-png.flaticon.com/512/149/149071.png">
-                <label for="input-foto" class="camera-icon"><i class="fas fa-camera"></i></label>
-                <input type="file" id="input-foto" accept="image/*" style="display:none" onchange="previewFoto(event)">
-            </div>
+            <h3>Criar Conta Grátis</h3>
             <input type="text" id="cad-nome" placeholder="Nome Completo">
             <input type="tel" id="cad-tel" placeholder="WhatsApp">
             <input type="email" id="cad-email" placeholder="E-mail">
             <input type="password" id="cad-senha" placeholder="Crie uma senha">
             <button class="btn-main" id="btn-cadastrar" onclick="acaoCadastro()">FINALIZAR CADASTRO</button>
-            <p onclick="navegar('screen-login')" style="cursor:pointer; margin-top:15px; color:#666;">Voltar ao login</p>
+            <p onclick="navegar('screen-login')" style="cursor:pointer; margin-top:15px; color:#666;">Já tenho conta</p>
         </div>
     </div>
 
@@ -67,71 +57,57 @@
     </div>
 
     <script>
-        // CONFIGURAÇÃO USANDO SEU PROJETO ATIVO
         const firebaseConfig = {
             apiKey: "AIzaSyCjP9yWZK4AUkJmswfb5iZVTlENDfTmP8o",
             authDomain: "meuappmobilidade-a6f93.firebaseapp.com",
             projectId: "meuappmobilidade-a6f93",
-            databaseURL: "https://meuappmobilidade-a6f93-default-rtdb.firebaseio.com/", // Adicionei o link do banco padrão
+            databaseURL: "https://meuappmobilidade-a6f93-default-rtdb.firebaseio.com/",
             storageBucket: "meuappmobilidade-a6f93.firebasestorage.app",
-            messagingSenderId: "1001774053416",
-            appId: "1:1001774053416:web:dcda8aee94322da8559d1d"
         };
         
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
-        const storage = firebase.storage();
-
-        let fotoArquivo = null;
 
         function navegar(id) {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             document.getElementById(id).classList.add('active');
         }
 
-        function previewFoto(event) {
-            fotoArquivo = event.target.files[0];
-            if (fotoArquivo) {
-                const reader = new FileReader();
-                reader.onload = e => document.getElementById('img-preview').src = e.target.result;
-                reader.readAsDataURL(fotoArquivo);
-            }
-        }
-
-        async function acaoCadastro() {
+        function acaoCadastro() {
             const btn = document.getElementById('btn-cadastrar');
             const nome = document.getElementById('cad-nome').value;
             const email = document.getElementById('cad-email').value;
             const tel = document.getElementById('cad-tel').value;
             const senha = document.getElementById('cad-senha').value;
             
-            if(!nome || !email || !senha || !fotoArquivo) return alert("Preencha tudo e coloque uma foto!");
+            if(!nome || !email || !senha) return alert("Preencha todos os campos!");
 
             btn.disabled = true;
-            btn.innerText = "Enviando...";
+            btn.innerText = "Salvando...";
 
-            try {
-                const storageRef = storage.ref('passageiros/' + Date.now() + '.jpg');
-                const snapshot = await storageRef.put(fotoArquivo);
-                const urlFoto = await snapshot.ref.getDownloadURL();
-
-                await db.ref('passageiros').push({
-                    nome, email, tel, senha, foto: urlFoto, status: "ativo"
-                });
-
-                alert("Sucesso! Faça seu login.");
+            // Salva direto no Banco de Dados (que é grátis)
+            db.ref('passageiros').push({
+                nome: nome,
+                email: email,
+                telefone: tel,
+                senha: senha,
+                status: "ativo",
+                foto: "https://cdn-icons-png.flaticon.com/512/149/149071.png" // Foto padrão linkada
+            }).then(() => {
+                alert("Cadastro realizado com sucesso!");
                 navegar('screen-login');
-            } catch (e) {
-                alert("Erro. Verifique se as Regras do Storage estão em Modo de Teste.");
-            } finally {
+            }).catch(e => {
+                alert("Erro ao salvar dados. Verifique as Regras do Database.");
+            }).finally(() => {
                 btn.disabled = false;
                 btn.innerText = "FINALIZAR CADASTRO";
-            }
+            });
         }
 
         function acaoLogin() {
             const email = document.getElementById('login-email').value;
             const senha = document.getElementById('login-senha').value;
+
             db.ref('passageiros').orderByChild('email').equalTo(email).once('value', snap => {
                 if (snap.exists()) {
                     const user = Object.values(snap.val())[0];
@@ -142,8 +118,8 @@
                             const map = L.map('map').setView([-22.9255, -45.4548], 14);
                             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
                         }, 500);
-                    } else alert("Senha incorreta");
-                } else alert("Usuário não encontrado");
+                    } else alert("Senha incorreta!");
+                } else alert("E-mail não encontrado!");
             });
         }
     </script>
