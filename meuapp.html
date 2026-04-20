@@ -6,18 +6,19 @@
     <title>PINDAVAÍ MOTORISTA</title>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        :root { --primary: #ffcc00; --dark: #1a1a1a; --success: #28a745; --danger: #dc3545; }
+        :root { --primary: #ffcc00; --dark: #1a1a1a; --success: #28a745; --danger: #dc3545; --blue: #4285F4; }
         body { font-family: 'Segoe UI', sans-serif; margin: 0; background: #f0f2f5; overscroll-behavior: none; }
         .screen { display: none; height: 100vh; flex-direction: column; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box; }
         .active { display: flex; }
         .card { background: white; padding: 25px; border-radius: 20px; width: 100%; max-width: 350px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); text-align: center; }
-        .btn { width: 100%; padding: 18px; border: none; border-radius: 12px; font-weight: bold; font-size: 16px; cursor: pointer; margin-top: 10px; }
+        .btn { width: 100%; padding: 18px; border: none; border-radius: 12px; font-weight: bold; font-size: 16px; cursor: pointer; margin-top: 10px; display: flex; align-items: center; justify-content: center; gap: 10px; }
         .btn-yellow { background: var(--primary); color: #000; }
         .btn-red { background: var(--danger); color: #fff; }
+        .btn-blue { background: var(--blue); color: #fff; }
         input { width: 100%; padding: 15px; margin: 8px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
-        .animar { animation: pulse 1s infinite; }
-        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+        .destaque { color: var(--blue); font-weight: bold; font-size: 18px; display: block; margin: 10px 0; }
     </style>
 </head>
 <body>
@@ -26,11 +27,11 @@
 
     <div id="m-login" class="screen active">
         <div class="card">
-            <h2 style="margin-bottom:5px;">PINDAVAÍ</h2>
-            <p style="font-size: 12px; color: #666; margin-bottom: 20px;">MOTORISTA</p>
-            <input type="text" id="l-email" placeholder="Usuário">
+            <h2 style="margin:0">PINDAVAÍ</h2>
+            <p style="font-size: 12px; color: #666; margin-bottom: 20px;">MÓDULO MOTORISTA</p>
+            <input type="text" id="l-email" placeholder="ID do Motorista">
             <input type="password" id="l-senha" placeholder="Senha">
-            <button class="btn btn-yellow" onclick="fazerLogin()">ENTRAR</button>
+            <button class="btn btn-yellow" onclick="fazerLogin()">ENTRAR NO SISTEMA</button>
         </div>
     </div>
 
@@ -39,42 +40,53 @@
             <h3 id="nome-exibicao">Olá!</h3>
             <p id="txt-status" style="color: #999;">Você está Offline</p>
             <button id="btn-toggle" class="btn btn-yellow" onclick="toggleOnline()">FICAR ONLINE</button>
-            <button class="btn" style="background:none; color:var(--danger);" onclick="location.reload()">Sair</button>
         </div>
     </div>
 
-    <div id="m-chamada" class="screen" style="background: rgba(0,0,0,0.95);">
-        <div class="card animar" style="border: 4px solid var(--primary);">
-            <h2 style="color: #ff6600">NOVA CORRIDA!</h2>
-            <div id="detalhes-chamada" style="text-align: left; margin: 20px 0; font-size: 16px; line-height: 1.5;"></div>
-            <button class="btn btn-yellow" onclick="aceitarCorrida()">ACEITAR</button>
+    <div id="m-chamada" class="screen" style="background: rgba(0,0,0,0.9);">
+        <div class="card" style="border: 5px solid var(--primary);">
+            <h2 style="color: #ff6600">NOVA CHAMADA!</h2>
+            <div id="detalhes-chamada" style="text-align: left; margin: 20px 0;"></div>
+            <button class="btn btn-yellow" onclick="aceitarCorrida()">ACEITAR AGORA</button>
             <button class="btn" style="background: #eee;" onclick="recusarCorrida()">RECUSAR</button>
         </div>
     </div>
 
     <div id="m-viagem" class="screen">
         <div class="card">
-            <h2 style="color:var(--success)">EM VIAGEM</h2>
-            <p id="info-viagem" style="margin: 20px 0;"></p>
-            <button class="btn btn-yellow" onclick="finalizarCorrida()">FINALIZAR CORRIDA</button>
+            <h2 id="titulo-viagem" style="color:var(--blue)">A CAMINHO</h2>
+            <p style="font-size: 12px; color: #888; margin:0">LOCAL ATUAL:</p>
+            <span id="info-viagem" class="destaque">---</span>
+            
+            <button class="btn btn-blue" onclick="abrirGPS()">
+                <i class="fas fa-location-arrow"></i> ABRIR NO GOOGLE MAPS
+            </button>
+
+            <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;">
+
+            <button id="btn-proximo" class="btn btn-yellow" onclick="proximaEtapa()">
+                JÁ RECOLHI O PASSAGEIRO
+            </button>
+            
+            <button id="btn-finalizar" class="btn btn-red" style="display:none;" onclick="finalizarCorrida()">
+                FINALIZAR CORRIDA
+            </button>
         </div>
     </div>
 
     <script>
-    // CONFIGURAÇÃO DO SEU FIREBASE
     const firebaseConfig = { databaseURL: "https://meuappmobilidade-a6f93-default-rtdb.firebaseio.com" };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
     let motorista = { chave: "moto_01", nome: "Adriano Piloto" };
-    let isOnline = false;
-    let watchID = null;
-    let idCorridaAtiva = null;
+    let isOnline = false, watchID = null, idCorridaAtiva = null;
+    let etapaViagem = "buscar"; // "buscar" ou "levar"
+    let dadosCorridaAtual = null;
     const somAlerta = document.getElementById('audioNotificacao');
 
     function fazerLogin() { 
-        // Importante: tocar e pausar o som no login para o navegador liberar o áudio
-        somAlerta.play().then(() => { somAlerta.pause(); }).catch(e => console.log("Som habilitado"));
+        somAlerta.play().then(() => { somAlerta.pause(); });
         mostrarTela('m-status'); 
         document.getElementById('nome-exibicao').innerText = motorista.nome; 
     }
@@ -82,15 +94,11 @@
     function toggleOnline() {
         isOnline = !isOnline;
         const btn = document.getElementById('btn-toggle');
-        const txt = document.getElementById('txt-status');
         if(isOnline) {
             btn.innerText = "FICAR OFFLINE"; btn.className = "btn btn-red";
-            txt.innerText = "Você está Online e visível";
-            iniciarGPS();
-            ouvirCorridas();
+            iniciarGPS(); ouvirCorridas();
         } else {
             btn.innerText = "FICAR ONLINE"; btn.className = "btn btn-yellow";
-            txt.innerText = "Você está Offline";
             pararGPS();
         }
     }
@@ -98,7 +106,7 @@
     function iniciarGPS() {
         watchID = navigator.geolocation.watchPosition((pos) => {
             db.ref('motoristas_online/' + motorista.chave).set({
-                nome: motorista.nome, lat: pos.coords.latitude, lng: pos.coords.longitude, status: "Online"
+                nome: motorista.nome, lat: pos.coords.latitude, lng: pos.coords.longitude, status: isOnline ? "Online" : "Offline"
             });
         }, null, { enableHighAccuracy: true });
     }
@@ -116,6 +124,7 @@
             for(let id in corridas) {
                 if(corridas[id].status === "Aguardando") {
                     idCorridaAtiva = id;
+                    dadosCorridaAtual = corridas[id];
                     exibirChamada(corridas[id]);
                     break;
                 }
@@ -124,35 +133,54 @@
     }
 
     function exibirChamada(dados) {
-        // TOCA O SOM E VIBRA
         somAlerta.play();
         if (navigator.vibrate) navigator.vibrate([500, 200, 500]);
-
         document.getElementById('detalhes-chamada').innerHTML = `
-            <b>CLIENTE:</b> ${dados.cliente || 'Passageiro'}<br>
-            <b>DE:</b> ${dados.origem}<br>
-            <b>PARA:</b> ${dados.destino}<br>
-            <b style="color:var(--success); font-size:20px;">VALOR: R$ ${dados.valor}</b>
+            <b>ORIGEM:</b> ${dados.origem}<br>
+            <b>DESTINO:</b> ${dados.destino}<br><br>
+            <span style="font-size:20px; color:var(--success)"><b>GANHO: R$ ${dados.valor}</b></span>
         `;
-        document.getElementById('info-viagem').innerText = `Levando ${dados.cliente || 'Passageiro'} para ${dados.destino}`;
         mostrarTela('m-chamada');
     }
 
     function aceitarCorrida() {
         somAlerta.pause();
-        somAlerta.currentTime = 0;
-        db.ref('corridas_abertas/' + idCorridaAtiva).update({ status: "Aceita", motorista: motorista.nome });
+        etapaViagem = "buscar";
+        document.getElementById('titulo-viagem').innerText = "INDO RECOLHER";
+        document.getElementById('info-viagem').innerText = dadosCorridaAtual.origem;
+        document.getElementById('btn-proximo').style.display = "flex";
+        document.getElementById('btn-finalizar').style.display = "none";
+        
+        db.ref('corridas_abertas/' + idCorridaAtiva).update({ status: "A caminho", motorista: motorista.nome });
         mostrarTela('m-viagem');
     }
 
-    function recusarCorrida() {
-        somAlerta.pause();
-        idCorridaAtiva = null;
-        mostrarTela('m-status');
+    function proximaEtapa() {
+        etapaViagem = "levar";
+        document.getElementById('titulo-viagem').innerText = "LEVANDO AO DESTINO";
+        document.getElementById('titulo-viagem').style.color = "var(--success)";
+        document.getElementById('info-viagem').innerText = dadosCorridaAtual.destino;
+        document.getElementById('btn-proximo').style.display = "none";
+        document.getElementById('btn-finalizar').style.display = "flex";
+        
+        db.ref('corridas_abertas/' + idCorridaAtiva).update({ status: "Em Viagem" });
+    }
+
+    function abrirGPS() {
+        let local = (etapaViagem === "buscar") ? dadosCorridaAtual.origem : dadosCorridaAtual.destino;
+        let url = "https://www.google.com/maps/dir/?api=1&destination=" + encodeURIComponent(local);
+        window.open(url, '_blank');
     }
 
     function finalizarCorrida() {
         db.ref('corridas_abertas/' + idCorridaAtiva).remove();
+        idCorridaAtiva = null;
+        mostrarTela('m-status');
+        alert("Corrida finalizada com sucesso!");
+    }
+
+    function recusarCorrida() {
+        somAlerta.pause();
         idCorridaAtiva = null;
         mostrarTela('m-status');
     }
