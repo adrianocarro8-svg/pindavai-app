@@ -28,7 +28,7 @@
     <div id="m-login" class="screen active">
         <div class="card">
             <h2 style="margin:0">PINDAVAÍ</h2>
-            <p style="font-size: 12px; color: #666; margin-bottom: 20px;">MÓDULO MOTORISTA</p>
+            <p style="font-size: 12px; color: #666; margin-bottom: 20px;">MOTORISTA</p>
             <input type="text" id="l-email" placeholder="ID Motorista">
             <input type="password" id="l-senha" placeholder="Senha">
             <button class="btn btn-yellow" onclick="fazerLogin()">ENTRAR</button>
@@ -55,12 +55,12 @@
     <div id="m-viagem" class="screen">
         <div class="card">
             <h2 id="titulo-viagem" style="color:var(--blue)">INDO RECOLHER</h2>
-            <p style="font-size: 12px; color: #888; margin:0">DESTINO ATUAL:</p>
+            <p style="font-size: 12px; color: #888; margin:0">DESTINO:</p>
             <span id="info-viagem" class="destaque">---</span>
             
-            <button class="btn btn-blue" onclick="abrirGPS()">
-                <i class="fas fa-map-marker-alt"></i> INICIAR NAVEGAÇÃO GPS
-            </button>
+            <a id="link-gps" href="#" class="btn btn-blue">
+                <i class="fas fa-map-marker-alt"></i> ABRIR NAVEGAÇÃO GPS
+            </a>
 
             <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;">
 
@@ -75,13 +75,12 @@
     const db = firebase.database();
 
     let motorista = { chave: "moto_01", nome: "Adriano Piloto" };
-    let isOnline = false, watchID = null, idCorridaAtiva = null;
-    let etapaViagem = "buscar"; 
+    let isOnline = false, idCorridaAtiva = null;
     let dadosCorridaAtual = null;
     const somAlerta = document.getElementById('audioNotificacao');
 
     function fazerLogin() { 
-        somAlerta.play().then(() => { somAlerta.pause(); }).catch(e => {});
+        somAlerta.play().then(() => { somAlerta.pause(); });
         mostrarTela('m-status'); 
         document.getElementById('nome-exibicao').innerText = motorista.nome; 
     }
@@ -91,25 +90,11 @@
         const btn = document.getElementById('btn-toggle');
         if(isOnline) {
             btn.innerText = "FICAR OFFLINE"; btn.className = "btn btn-red";
-            iniciarGPS(); ouvirCorridas();
+            ouvirCorridas();
         } else {
             btn.innerText = "FICAR ONLINE"; btn.className = "btn btn-yellow";
-            pararGPS();
+            db.ref('corridas_abertas').off();
         }
-    }
-
-    function iniciarGPS() {
-        watchID = navigator.geolocation.watchPosition((pos) => {
-            db.ref('motoristas_online/' + motorista.chave).set({
-                nome: motorista.nome, lat: pos.coords.latitude, lng: pos.coords.longitude, status: "Online"
-            });
-        }, null, { enableHighAccuracy: true });
-    }
-
-    function pararGPS() {
-        if(watchID) navigator.geolocation.clearWatch(watchID);
-        db.ref('motoristas_online/' + motorista.chave).remove();
-        db.ref('corridas_abertas').off();
     }
 
     function ouvirCorridas() {
@@ -129,20 +114,22 @@
 
     function exibirChamada(dados) {
         somAlerta.play();
-        if (navigator.vibrate) navigator.vibrate([500, 200, 500]);
-        document.getElementById('detalhes-chamada').innerHTML = `
-            <b>ORIGEM:</b> ${dados.origem}<br>
-            <b>DESTINO:</b> ${dados.destino}<br><br>
-            <span style="font-size:20px; color:var(--success)"><b>GANHO: R$ ${dados.valor}</b></span>
-        `;
+        document.getElementById('detalhes-chamada').innerHTML = `<b>ORIGEM:</b> ${dados.origem}<br><b>DESTINO:</b> ${dados.destino}<br><br><span style="font-size:18px; color:var(--success)"><b>VALOR: R$ ${dados.valor}</b></span>`;
         mostrarTela('m-chamada');
+    }
+
+    function atualizarLinkGPS(endereco) {
+        // O segredo está aqui: "google.navigation:q=" abre direto o app no Android
+        const link = document.getElementById('link-gps');
+        link.href = "google.navigation:q=" + encodeURIComponent(endereco);
     }
 
     function aceitarCorrida() {
         somAlerta.pause();
-        etapaViagem = "buscar";
         document.getElementById('titulo-viagem').innerText = "INDO RECOLHER";
         document.getElementById('info-viagem').innerText = dadosCorridaAtual.origem;
+        atualizarLinkGPS(dadosCorridaAtual.origem);
+        
         document.getElementById('btn-proximo').style.display = "flex";
         document.getElementById('btn-finalizar').style.display = "none";
         db.ref('corridas_abertas/' + idCorridaAtiva).update({ status: "A caminho", motorista: motorista.nome });
@@ -150,23 +137,13 @@
     }
 
     function proximaEtapa() {
-        etapaViagem = "levar";
         document.getElementById('titulo-viagem').innerText = "LEVANDO AO DESTINO";
         document.getElementById('info-viagem').innerText = dadosCorridaAtual.destino;
+        atualizarLinkGPS(dadosCorridaAtual.destino);
+        
         document.getElementById('btn-proximo').style.display = "none";
         document.getElementById('btn-finalizar').style.display = "flex";
         db.ref('corridas_abertas/' + idCorridaAtiva).update({ status: "Em Viagem" });
-    }
-
-    // NOVA FUNÇÃO DE GPS - MAIS FORTE
-    function abrirGPS() {
-        let local = (etapaViagem === "buscar") ? dadosCorridaAtual.origem : dadosCorridaAtual.destino;
-        
-        // Tentativa 1: Link Universal (Funciona em quase todos)
-        let url = "https://www.google.com/maps/dir/?api=1&destination=" + encodeURIComponent(local);
-        
-        // Se estiver no Android, o 'window.location' costuma ser mais eficiente para abrir o app
-        window.location.href = url;
     }
 
     function finalizarCorrida() {
@@ -175,16 +152,8 @@
         mostrarTela('m-status');
     }
 
-    function recusarCorrida() {
-        somAlerta.pause();
-        idCorridaAtiva = null;
-        mostrarTela('m-status');
-    }
-
-    function mostrarTela(id) {
-        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-        document.getElementById(id).classList.add('active');
-    }
+    function recusarCorrida() { somAlerta.pause(); idCorridaAtiva = null; mostrarTela('m-status'); }
+    function mostrarTela(id) { document.querySelectorAll('.screen').forEach(s => s.classList.remove('active')); document.getElementById(id).classList.add('active'); }
     </script>
 </body>
 </html>
