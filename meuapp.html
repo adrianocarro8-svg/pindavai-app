@@ -9,15 +9,15 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         :root { --primary: #ffcc00; --dark: #1a1a1a; --success: #28a745; --danger: #dc3545; --blue: #4285F4; }
-        body { font-family: 'Segoe UI', sans-serif; margin: 0; background: #f0f2f5; overscroll-behavior: none; color: #333; }
+        body { font-family: 'Segoe UI', sans-serif; margin: 0; background: #f0f2f5; color: #333; overflow-x: hidden; }
         .screen { display: none; height: 100vh; flex-direction: column; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box; }
         .active { display: flex; }
         .card { background: white; padding: 25px; border-radius: 20px; width: 100%; max-width: 350px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); text-align: center; }
-        .btn { width: 100%; padding: 18px; border: none; border-radius: 12px; font-weight: bold; font-size: 16px; cursor: pointer; margin-top: 10px; display: flex; align-items: center; justify-content: center; gap: 10px; text-decoration: none; box-sizing: border-box; }
+        .btn { width: 100%; padding: 18px; border: none; border-radius: 12px; font-weight: bold; font-size: 16px; cursor: pointer; margin-top: 10px; display: flex; align-items: center; justify-content: center; gap: 10px; text-decoration: none; }
         .btn-yellow { background: var(--primary); color: #000; }
         .btn-red { background: var(--danger); color: #fff; }
-        .btn-blue { background: var(--blue); color: #fff; border-bottom: 4px solid #2a5fb3; }
-        .destaque { color: var(--blue); font-weight: bold; font-size: 18px; display: block; margin: 10px 0; background: #e8f0fe; padding: 10px; border-radius: 8px; }
+        .btn-blue { background: var(--blue); color: #fff; }
+        .destaque { color: var(--blue); font-weight: bold; font-size: 16px; display: block; margin: 10px 0; background: #eef4ff; padding: 10px; border-radius: 8px; border: 1px dashed var(--blue); }
         input { width: 100%; padding: 15px; margin: 8px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
     </style>
 </head>
@@ -27,8 +27,7 @@
 
     <div id="m-login" class="screen active">
         <div class="card">
-            <h2 style="margin:0">PINDAVAÍ</h2>
-            <p style="font-size: 12px; color: #666; margin-bottom: 20px;">MODO MOTORISTA</p>
+            <h2>PINDAVAÍ</h2>
             <input type="text" id="l-email" placeholder="ID Motorista">
             <input type="password" id="l-senha" placeholder="Senha">
             <button class="btn btn-yellow" onclick="fazerLogin()">ENTRAR</button>
@@ -37,16 +36,15 @@
 
     <div id="m-status" class="screen">
         <div class="card">
-            <h3 id="nome-exibicao">Bem-vindo!</h3>
-            <p id="txt-status" style="color: #999;">Você está Offline</p>
+            <h3 id="nome-exibicao">Olá!</h3>
             <button id="btn-toggle" class="btn btn-yellow" onclick="toggleOnline()">FICAR ONLINE</button>
         </div>
     </div>
 
-    <div id="m-chamada" class="screen" style="background: rgba(0,0,0,0.95);">
-        <div class="card" style="border: 5px solid var(--primary);">
-            <h2 style="color: #ff6600; margin:0">NOVA CHAMADA!</h2>
-            <div id="detalhes-chamada" style="text-align: left; margin: 20px 0; font-size: 15px;"></div>
+    <div id="m-chamada" class="screen" style="background: rgba(0,0,0,0.9);">
+        <div class="card">
+            <h2 style="color: #ff6600">NOVA CHAMADA!</h2>
+            <div id="detalhes-chamada" style="text-align: left; margin: 20px 0;"></div>
             <button class="btn btn-yellow" onclick="aceitarCorrida()">ACEITAR</button>
             <button class="btn" style="background: #eee;" onclick="recusarCorrida()">RECUSAR</button>
         </div>
@@ -54,23 +52,17 @@
 
     <div id="m-viagem" class="screen">
         <div class="card">
-            <h2 id="titulo-viagem" style="color:var(--blue); margin-top:0;">A CAMINHO</h2>
-            <p style="font-size: 11px; color: #888; margin:0; text-transform: uppercase;">Endereço Atual:</p>
+            <h2 id="titulo-viagem" style="color:var(--blue)">INDO RECOLHER</h2>
+            <p style="font-size: 11px; color: #888; margin:0">DESTINO DA ROTA:</p>
             <span id="info-viagem" class="destaque">---</span>
             
             <button class="btn btn-blue" onclick="abrirGPS()">
-                <i class="fas fa-route"></i> TRAÇAR ROTA NO MAPS
+                <i class="fas fa-map-marked-alt"></i> ABRIR ROTA NO MAPS
             </button>
 
             <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;">
-
-            <button id="btn-proximo" class="btn btn-yellow" onclick="proximaEtapa()">
-                JÁ RECOLHI O PASSAGEIRO
-            </button>
-            
-            <button id="btn-finalizar" class="btn btn-red" style="display:none;" onclick="finalizarCorrida()">
-                FINALIZAR CORRIDA
-            </button>
+            <button id="btn-proximo" class="btn btn-yellow" onclick="proximaEtapa()">JÁ RECOLHI O PASSAGEIRO</button>
+            <button id="btn-finalizar" class="btn btn-red" style="display:none;" onclick="finalizarCorrida()">FINALIZAR CORRIDA</button>
         </div>
     </div>
 
@@ -80,13 +72,11 @@
     const db = firebase.database();
 
     let motorista = { chave: "moto_01", nome: "Adriano Piloto" };
-    let isOnline = false, watchID = null, idCorridaAtiva = null;
-    let etapaViagem = "buscar"; 
-    let dadosCorridaAtual = null;
+    let isOnline = false, idCorridaAtiva = null, dadosCorridaAtual = null, etapaViagem = "buscar";
     const somAlerta = document.getElementById('audioNotificacao');
 
     function fazerLogin() { 
-        somAlerta.play().then(() => { somAlerta.pause(); }).catch(e => {});
+        somAlerta.play().then(() => { somAlerta.pause(); });
         mostrarTela('m-status'); 
         document.getElementById('nome-exibicao').innerText = motorista.nome; 
     }
@@ -96,25 +86,11 @@
         const btn = document.getElementById('btn-toggle');
         if(isOnline) {
             btn.innerText = "FICAR OFFLINE"; btn.className = "btn btn-red";
-            iniciarGPS(); ouvirCorridas();
+            ouvirCorridas();
         } else {
             btn.innerText = "FICAR ONLINE"; btn.className = "btn btn-yellow";
-            pararGPS();
+            db.ref('corridas_abertas').off();
         }
-    }
-
-    function iniciarGPS() {
-        watchID = navigator.geolocation.watchPosition((pos) => {
-            db.ref('motoristas_online/' + motorista.chave).update({
-                nome: motorista.nome, lat: pos.coords.latitude, lng: pos.coords.longitude, status: "Online"
-            });
-        }, null, { enableHighAccuracy: true });
-    }
-
-    function pararGPS() {
-        if(watchID) navigator.geolocation.clearWatch(watchID);
-        db.ref('motoristas_online/' + motorista.chave).remove();
-        db.ref('corridas_abertas').off();
     }
 
     function ouvirCorridas() {
@@ -134,12 +110,7 @@
 
     function exibirChamada(dados) {
         somAlerta.play();
-        if (navigator.vibrate) navigator.vibrate([500, 200, 500]);
-        document.getElementById('detalhes-chamada').innerHTML = `
-            <b>DE:</b> ${dados.origem}<br>
-            <b>PARA:</b> ${dados.destino}<br><br>
-            <span style="font-size:18px; color:var(--success)"><b>GANHO: R$ ${dados.valor}</b></span>
-        `;
+        document.getElementById('detalhes-chamada').innerHTML = `<b>DE:</b> ${dados.origem}<br><b>PARA:</b> ${dados.destino}<br><br><b>VALOR: R$ ${dados.valor}</b>`;
         mostrarTela('m-chamada');
     }
 
@@ -163,15 +134,16 @@
         db.ref('corridas_abertas/' + idCorridaAtiva).update({ status: "Em Viagem" });
     }
 
-    // FUNÇÃO DE GPS COM ROTA AUTOMÁTICA
+    // A MÁGICA PARA O APK FUNCIONAR:
     function abrirGPS() {
-        let destino = (etapaViagem === "buscar") ? dadosCorridaAtual.origem : dadosCorridaAtual.destino;
+        let local = (etapaViagem === "buscar") ? dadosCorridaAtual.origem : dadosCorridaAtual.destino;
         
-        // Formato de Direções do Google (Força a linha azul de rota)
-        // origin=My+Location e destination=Endereco
-        const urlMaps = "https://www.google.com/maps/dir/?api=1&origin=My+Location&destination=" + encodeURIComponent(destino) + "&travelmode=driving";
+        // Link "https://www.google.com/maps/dir/?api=1" é o que melhor funciona em APKs
+        // Ele força o desenho da rota da localização atual até o destino
+        let url = "https://www.google.com/maps/dir/?api=1&destination=" + encodeURIComponent(local) + "&travelmode=driving";
         
-        window.location.href = urlMaps;
+        // Em APKs, o window.open pode falhar. Usamos location.href
+        window.location.href = url;
     }
 
     function finalizarCorrida() {
