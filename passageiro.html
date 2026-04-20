@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PINDAVAI - Passageiro Pro</title>
+    <title>PINDAVAI - Passageiro</title>
     
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
@@ -17,57 +17,35 @@
         body, html { margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; height: 100%; background: #f4f4f4; overflow: hidden; }
         .screen { display: none; height: 100vh; flex-direction: column; }
         .active { display: flex; }
-        
         #map { flex: 1; width: 100%; z-index: 1; }
-        
-        .ride-panel { background: white; padding: 20px; border-radius: 25px 25px 0 0; box-shadow: 0 -5px 15px rgba(0,0,0,0.1); z-index: 1000; position: relative; }
-        
-        input, select { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 15px; }
-        .btn-main { background: var(--pindavai); color: #000; border: none; width: 100%; padding: 15px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 16px; margin-top: 10px; }
-        
-        #status-monitor { display: none; background: var(--dark); color: white; padding: 20px; border-radius: 20px 20px 0 0; position: fixed; bottom: 0; width: 100%; box-sizing: border-box; z-index: 2000; text-align: center; }
-        .driver-info { background: #333; padding: 15px; border-radius: 10px; margin-top: 10px; text-align: left; border-left: 5px solid var(--pindavai); }
-        
-        .price-tag { background: #e8f5e9; color: #2e7d32; padding: 12px; border-radius: 10px; text-align: center; font-size: 18px; font-weight: bold; margin: 10px 0; display: none; }
-        
-        /* Estilo do ícone do carro no mapa */
-        .car-icon-style { font-size: 22px; text-shadow: 0 0 5px rgba(0,0,0,0.3); transition: all 0.5s ease; }
+        .ride-panel { background: white; padding: 20px; border-radius: 25px 25px 0 0; box-shadow: 0 -5px 15px rgba(0,0,0,0.1); z-index: 1000; }
+        input { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+        .btn-main { background: var(--pindavai); color: #000; border: none; width: 100%; padding: 15px; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        #status-monitor { display: none; background: var(--dark); color: white; padding: 20px; border-radius: 20px 20px 0 0; position: fixed; bottom: 0; width: 100%; z-index: 2000; text-align: center; }
+        .car-icon-style { font-size: 24px; text-shadow: 0 0 5px rgba(0,0,0,0.5); transition: all 0.5s linear; }
     </style>
 </head>
 <body>
 
     <div id="screen-login" class="screen active" style="align-items:center; justify-content:center;">
-        <div style="background:white; padding:30px; border-radius:20px; width:80%; max-width:350px; text-align:center;">
+        <div style="background:white; padding:30px; border-radius:20px; width:85%; max-width:350px; text-align:center;">
             <h1>PINDAVAÍ</h1>
-            <input type="email" id="login-email" placeholder="E-mail">
-            <input type="password" id="login-senha" placeholder="Senha">
+            <input type="email" id="l-email" placeholder="E-mail">
+            <input type="password" id="l-senha" placeholder="Senha">
             <button class="btn-main" onclick="acaoLogin()">ENTRAR</button>
         </div>
     </div>
 
     <div id="screen-app" class="screen">
         <div id="map"></div>
-        
         <div id="panel-request" class="ride-panel">
-            <div id="user-welcome" style="font-weight: bold; margin-bottom: 10px;"></div>
             <input type="text" id="inp-partida" placeholder="📍 Local de partida">
-            <input type="text" id="inp-destino" placeholder="🏁 Destino Final" onchange="calcularValor()">
-            <select id="select-pagamento">
-                <option value="Dinheiro">Dinheiro</option>
-                <option value="Pix">Pix</option>
-            </select>
-            <div id="display-preco" class="price-tag"></div>
-            <button class="btn-main" onclick="solicitarCorrida()">SOLICITAR VIAGEM</button>
+            <input type="text" id="inp-destino" placeholder="🏁 Destino Final">
+            <button class="btn-main" onclick="solicitarCorrida()">SOLICITAR PINDAVAÍ</button>
         </div>
-
         <div id="status-monitor">
             <div id="status-msg">Procurando motoristas...</div>
-            <div id="info-motorista-box" class="driver-info" style="display:none;">
-                <b style="color:var(--pindavai)">MOTORISTA ACEITOU!</b><br>
-                <span id="nome-mot">---</span><br>
-                <span id="carro-mot">---</span> | <b id="placa-mot">---</b>
-            </div>
-            <button id="btn-cancelar" class="btn-main" style="background:#dc3545; color:white;" onclick="cancelarCorrida()">CANCELAR</button>
+            <button class="btn-main" style="background:#dc3545; color:white; margin-top:10px;" onclick="cancelarCorrida()">CANCELAR</button>
         </div>
     </div>
 
@@ -77,25 +55,21 @@
         const db = firebase.database();
 
         let map, currentUser, idCorridaAtual;
-        let marcadoresMotoristas = {}; // Para guardar os carrinhos no mapa
+        let marcadoresMotoristas = {};
 
         function acaoLogin() {
-            const email = document.getElementById('login-email').value;
-            const senha = document.getElementById('login-senha').value;
+            const email = document.getElementById('l-email').value;
+            const senha = document.getElementById('l-senha').value;
             db.ref('passageiros').orderByChild('email').equalTo(email).once('value', snap => {
                 if(snap.exists()){
-                    const idUser = Object.keys(snap.val())[0];
-                    const user = snap.val()[idUser];
-                    if(user.senha === senha) {
-                        currentUser = { ...user, id: idUser };
-                        document.getElementById('user-welcome').innerText = "Olá, " + user.nome;
-                        document.getElementById('screen-login').classList.remove('active');
-                        document.getElementById('screen-app').classList.add('active');
-                        initMap();
-                        monitorarMotoristasNoMapa(); // Começa a ver os carros
-                        verificarCorridaAtiva();
-                    } else alert("Senha incorreta");
-                } else alert("Usuário não encontrado");
+                    const id = Object.keys(snap.val())[0];
+                    currentUser = snap.val()[id];
+                    document.getElementById('screen-login').classList.remove('active');
+                    document.getElementById('screen-app').classList.add('active');
+                    initMap();
+                    monitorarMotoristasNoMapa(); 
+                    verificarCorridaAtiva();
+                }
             });
         }
 
@@ -104,12 +78,12 @@
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
         }
 
-        // --- MOSTRAR MOTORISTAS NO MAPA DO PASSAGEIRO ---
+        // --- LÓGICA DAS 4 CORES NO MAPA ---
         function monitorarMotoristasNoMapa() {
             db.ref('localizacao_motoristas').on('value', snap => {
                 const motoristas = snap.val();
                 
-                // Limpa carros que saíram do ar
+                // Remove motoristas deslogados (que sumiram do banco)
                 for (let id in marcadoresMotoristas) {
                     if (!motoristas || !motoristas[id]) {
                         map.removeLayer(marcadoresMotoristas[id]);
@@ -117,26 +91,24 @@
                     }
                 }
 
-                if(!motoristas) return;
-
                 for (let id in motoristas) {
                     const m = motoristas[id];
-                    // Cor: Verde se estiver livre, Vermelho se estiver ocupado
-                    const cor = (m.status === "disponivel") ? "#28a745" : "#dc3545";
+                    let cor = "#ffcc00"; // Padrão: Amarelo (Logado/Offline)
+
+                    if (m.status === "disponivel") cor = "#28a745";    // Verde
+                    if (m.status === "a_caminho") cor = "#dc3545";     // Vermelho
+                    if (m.status === "em_viagem") cor = "#000000";     // Preto
 
                     if (marcadoresMotoristas[id]) {
-                        // Atualiza posição suavemente
                         marcadoresMotoristas[id].setLatLng([m.lat, m.lng]);
                         const el = marcadoresMotoristas[id].getElement();
                         if(el) el.querySelector('i').style.color = cor;
                     } else {
-                        // Cria novo ícone de carro
-                        const carIcon = L.divIcon({
+                        const icon = L.divIcon({
                             html: `<i class="fas fa-car car-icon-style" style="color: ${cor}"></i>`,
-                            className: 'dummy',
-                            iconSize: [24, 24], iconAnchor: [12, 12]
+                            className: 'dummy', iconSize: [30, 30], iconAnchor: [15, 15]
                         });
-                        marcadoresMotoristas[id] = L.marker([m.lat, m.lng], { icon: carIcon }).addTo(map);
+                        marcadoresMotoristas[id] = L.marker([m.lat, m.lng], { icon: icon }).addTo(map);
                     }
                 }
             });
@@ -145,18 +117,11 @@
         function solicitarCorrida() {
             const partida = document.getElementById('inp-partida').value;
             const destino = document.getElementById('inp-destino').value;
-            if(!partida || !destino) return alert("Preencha os locais!");
-
-            const novaCorrida = {
+            const ref = db.ref('corridas_pendentes').push({
                 passageiroNome: currentUser.nome,
-                partida, destino,
-                status: "pendente",
-                valor: document.getElementById('display-preco').innerText || "A combinar"
-            };
-
-            const ref = db.ref('corridas_pendentes').push(novaCorrida);
+                partida, destino, status: "pendente"
+            });
             idCorridaAtual = ref.key;
-            
             document.getElementById('panel-request').style.display = "none";
             document.getElementById('status-monitor').style.display = "block";
             monitorarCorrida();
@@ -166,23 +131,10 @@
             db.ref('corridas_pendentes/' + idCorridaAtual).on('value', snap => {
                 const c = snap.val();
                 if(!c) return;
-
-                const statusMsg = document.getElementById('status-msg');
-                const infoBox = document.getElementById('info-motorista-box');
-
-                if(c.status === "A caminho") {
-                    statusMsg.innerText = "MOTORISTA A CAMINHO!";
-                    statusMsg.style.color = "#ffcc00";
-                    infoBox.style.display = "block";
-                    document.getElementById('nome-mot').innerText = c.motoristaNome;
-                    document.getElementById('placa-mot').innerText = c.motoristaPlaca;
-                } else if(c.status === "Em Viagem") {
-                    statusMsg.innerText = "EM VIAGEM...";
-                    statusMsg.style.color = "#28a745";
-                } else if(c.status === "Finalizada" || c.status === "Cancelada") {
-                    alert("Corrida encerrada.");
-                    location.reload();
-                }
+                const msg = document.getElementById('status-msg');
+                if(c.status === "A caminho") msg.innerText = "Motorista Vermelho vindo buscar você!";
+                if(c.status === "Em Viagem") msg.innerText = "Em viagem (Carro Preto no mapa)";
+                if(c.status === "Finalizada") location.reload();
             });
         }
 
@@ -190,7 +142,7 @@
             db.ref('corridas_pendentes').once('value', snap => {
                 const dados = snap.val();
                 for(let id in dados) {
-                    if(dados[id].passageiroNome === currentUser.nome && dados[id].status !== "Finalizada" && dados[id].status !== "Cancelada") {
+                    if(dados[id].passageiroNome === currentUser.nome && dados[id].status !== "Finalizada") {
                         idCorridaAtual = id;
                         document.getElementById('panel-request').style.display = "none";
                         document.getElementById('status-monitor').style.display = "block";
@@ -199,18 +151,6 @@
                     }
                 }
             });
-        }
-
-        function cancelarCorrida() {
-            if(confirm("Cancelar viagem?")) {
-                db.ref('corridas_pendentes/' + idCorridaAtual).update({ status: "Cancelada" })
-                .then(() => location.reload());
-            }
-        }
-
-        function calcularValor() {
-            document.getElementById('display-preco').innerText = "R$ 15,00";
-            document.getElementById('display-preco').style.display = "block";
         }
     </script>
 </body>
