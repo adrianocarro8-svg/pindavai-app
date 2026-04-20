@@ -13,7 +13,7 @@
         .screen { display: none; height: 100vh; flex-direction: column; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box; }
         .active { display: flex; }
         .card { background: white; padding: 25px; border-radius: 20px; width: 100%; max-width: 350px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); text-align: center; }
-        .btn { width: 100%; padding: 18px; border: none; border-radius: 12px; font-weight: bold; font-size: 16px; cursor: pointer; margin-top: 10px; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        .btn { width: 100%; padding: 18px; border: none; border-radius: 12px; font-weight: bold; font-size: 16px; cursor: pointer; margin-top: 10px; display: flex; align-items: center; justify-content: center; gap: 10px; text-decoration: none; }
         .btn-yellow { background: var(--primary); color: #000; }
         .btn-red { background: var(--danger); color: #fff; }
         .btn-blue { background: var(--blue); color: #fff; }
@@ -29,9 +29,9 @@
         <div class="card">
             <h2 style="margin:0">PINDAVAÍ</h2>
             <p style="font-size: 12px; color: #666; margin-bottom: 20px;">MÓDULO MOTORISTA</p>
-            <input type="text" id="l-email" placeholder="ID do Motorista">
+            <input type="text" id="l-email" placeholder="ID Motorista">
             <input type="password" id="l-senha" placeholder="Senha">
-            <button class="btn btn-yellow" onclick="fazerLogin()">ENTRAR NO SISTEMA</button>
+            <button class="btn btn-yellow" onclick="fazerLogin()">ENTRAR</button>
         </div>
     </div>
 
@@ -47,30 +47,25 @@
         <div class="card" style="border: 5px solid var(--primary);">
             <h2 style="color: #ff6600">NOVA CHAMADA!</h2>
             <div id="detalhes-chamada" style="text-align: left; margin: 20px 0;"></div>
-            <button class="btn btn-yellow" onclick="aceitarCorrida()">ACEITAR AGORA</button>
+            <button class="btn btn-yellow" onclick="aceitarCorrida()">ACEITAR</button>
             <button class="btn" style="background: #eee;" onclick="recusarCorrida()">RECUSAR</button>
         </div>
     </div>
 
     <div id="m-viagem" class="screen">
         <div class="card">
-            <h2 id="titulo-viagem" style="color:var(--blue)">A CAMINHO</h2>
-            <p style="font-size: 12px; color: #888; margin:0">LOCAL ATUAL:</p>
+            <h2 id="titulo-viagem" style="color:var(--blue)">INDO RECOLHER</h2>
+            <p style="font-size: 12px; color: #888; margin:0">DESTINO ATUAL:</p>
             <span id="info-viagem" class="destaque">---</span>
             
             <button class="btn btn-blue" onclick="abrirGPS()">
-                <i class="fas fa-location-arrow"></i> ABRIR NO GOOGLE MAPS
+                <i class="fas fa-map-marker-alt"></i> INICIAR NAVEGAÇÃO GPS
             </button>
 
             <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;">
 
-            <button id="btn-proximo" class="btn btn-yellow" onclick="proximaEtapa()">
-                JÁ RECOLHI O PASSAGEIRO
-            </button>
-            
-            <button id="btn-finalizar" class="btn btn-red" style="display:none;" onclick="finalizarCorrida()">
-                FINALIZAR CORRIDA
-            </button>
+            <button id="btn-proximo" class="btn btn-yellow" onclick="proximaEtapa()">JÁ RECOLHI O PASSAGEIRO</button>
+            <button id="btn-finalizar" class="btn btn-red" style="display:none;" onclick="finalizarCorrida()">FINALIZAR CORRIDA</button>
         </div>
     </div>
 
@@ -81,12 +76,12 @@
 
     let motorista = { chave: "moto_01", nome: "Adriano Piloto" };
     let isOnline = false, watchID = null, idCorridaAtiva = null;
-    let etapaViagem = "buscar"; // "buscar" ou "levar"
+    let etapaViagem = "buscar"; 
     let dadosCorridaAtual = null;
     const somAlerta = document.getElementById('audioNotificacao');
 
     function fazerLogin() { 
-        somAlerta.play().then(() => { somAlerta.pause(); });
+        somAlerta.play().then(() => { somAlerta.pause(); }).catch(e => {});
         mostrarTela('m-status'); 
         document.getElementById('nome-exibicao').innerText = motorista.nome; 
     }
@@ -106,7 +101,7 @@
     function iniciarGPS() {
         watchID = navigator.geolocation.watchPosition((pos) => {
             db.ref('motoristas_online/' + motorista.chave).set({
-                nome: motorista.nome, lat: pos.coords.latitude, lng: pos.coords.longitude, status: isOnline ? "Online" : "Offline"
+                nome: motorista.nome, lat: pos.coords.latitude, lng: pos.coords.longitude, status: "Online"
             });
         }, null, { enableHighAccuracy: true });
     }
@@ -150,7 +145,6 @@
         document.getElementById('info-viagem').innerText = dadosCorridaAtual.origem;
         document.getElementById('btn-proximo').style.display = "flex";
         document.getElementById('btn-finalizar').style.display = "none";
-        
         db.ref('corridas_abertas/' + idCorridaAtiva).update({ status: "A caminho", motorista: motorista.nome });
         mostrarTela('m-viagem');
     }
@@ -158,25 +152,27 @@
     function proximaEtapa() {
         etapaViagem = "levar";
         document.getElementById('titulo-viagem').innerText = "LEVANDO AO DESTINO";
-        document.getElementById('titulo-viagem').style.color = "var(--success)";
         document.getElementById('info-viagem').innerText = dadosCorridaAtual.destino;
         document.getElementById('btn-proximo').style.display = "none";
         document.getElementById('btn-finalizar').style.display = "flex";
-        
         db.ref('corridas_abertas/' + idCorridaAtiva).update({ status: "Em Viagem" });
     }
 
+    // NOVA FUNÇÃO DE GPS - MAIS FORTE
     function abrirGPS() {
         let local = (etapaViagem === "buscar") ? dadosCorridaAtual.origem : dadosCorridaAtual.destino;
+        
+        // Tentativa 1: Link Universal (Funciona em quase todos)
         let url = "https://www.google.com/maps/dir/?api=1&destination=" + encodeURIComponent(local);
-        window.open(url, '_blank');
+        
+        // Se estiver no Android, o 'window.location' costuma ser mais eficiente para abrir o app
+        window.location.href = url;
     }
 
     function finalizarCorrida() {
         db.ref('corridas_abertas/' + idCorridaAtiva).remove();
         idCorridaAtiva = null;
         mostrarTela('m-status');
-        alert("Corrida finalizada com sucesso!");
     }
 
     function recusarCorrida() {
