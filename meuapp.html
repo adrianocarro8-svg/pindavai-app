@@ -3,34 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PINDAVAI - Motorista V13.0</title>
+    <title>PINDAVAÍ MOTORISTA</title>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
     <style>
-        :root { --primary: #ffcc00; --dark: #1a1a1a; --success: #28a745; --danger: #dc3545; --blue: #007bff; }
+        :root { --primary: #ffcc00; --dark: #1a1a1a; --success: #28a745; --danger: #dc3545; }
         body { font-family: 'Segoe UI', sans-serif; margin: 0; background: #f0f2f5; overscroll-behavior: none; }
         .screen { display: none; height: 100vh; flex-direction: column; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box; }
         .active { display: flex; }
         .card { background: white; padding: 25px; border-radius: 20px; width: 100%; max-width: 350px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); text-align: center; }
-        .btn { width: 100%; padding: 15px; border: none; border-radius: 12px; font-weight: bold; font-size: 16px; cursor: pointer; margin-top: 10px; transition: 0.3s; }
+        .btn { width: 100%; padding: 18px; border: none; border-radius: 12px; font-weight: bold; font-size: 16px; cursor: pointer; margin-top: 10px; }
         .btn-yellow { background: var(--primary); color: #000; }
         .btn-red { background: var(--danger); color: #fff; }
-        .status-badge { padding: 10px 20px; border-radius: 50px; font-weight: bold; margin-bottom: 20px; font-size: 14px; }
-        .status-off { background: #eee; color: #666; }
-        .status-on { background: rgba(40, 167, 69, 0.1); color: var(--success); border: 1px solid var(--success); }
-        input { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
-        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+        input { width: 100%; padding: 15px; margin: 8px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
         .animar { animation: pulse 1s infinite; }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
     </style>
 </head>
 <body>
 
-    <audio id="audioNotificacao" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" loop></audio>
+    <audio id="audioNotificacao" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" loop preload="auto"></audio>
 
     <div id="m-login" class="screen active">
         <div class="card">
-            <h2>PINDAVAÍ</h2>
-            <p style="font-size: 12px; color: #666; margin-bottom: 20px;">PORTAL DO MOTORISTA</p>
+            <h2 style="margin-bottom:5px;">PINDAVAÍ</h2>
+            <p style="font-size: 12px; color: #666; margin-bottom: 20px;">MOTORISTA</p>
             <input type="text" id="l-email" placeholder="Usuário">
             <input type="password" id="l-senha" placeholder="Senha">
             <button class="btn btn-yellow" onclick="fazerLogin()">ENTRAR</button>
@@ -38,18 +35,18 @@
     </div>
 
     <div id="m-status" class="screen">
-        <div id="badge-status" class="status-badge status-off">Status: Offline</div>
         <div class="card">
             <h3 id="nome-exibicao">Olá!</h3>
+            <p id="txt-status" style="color: #999;">Você está Offline</p>
             <button id="btn-toggle" class="btn btn-yellow" onclick="toggleOnline()">FICAR ONLINE</button>
-            <button class="btn" style="background:none; color:var(--danger); font-size:12px;" onclick="logout()">Sair</button>
+            <button class="btn" style="background:none; color:var(--danger);" onclick="location.reload()">Sair</button>
         </div>
     </div>
 
-    <div id="m-chamada" class="screen" style="background: rgba(0,0,0,0.9);">
+    <div id="m-chamada" class="screen" style="background: rgba(0,0,0,0.95);">
         <div class="card animar" style="border: 4px solid var(--primary);">
             <h2 style="color: #ff6600">NOVA CORRIDA!</h2>
-            <div id="detalhes-chamada" style="text-align: left; margin: 15px 0; font-size: 14px;"></div>
+            <div id="detalhes-chamada" style="text-align: left; margin: 20px 0; font-size: 16px; line-height: 1.5;"></div>
             <button class="btn btn-yellow" onclick="aceitarCorrida()">ACEITAR</button>
             <button class="btn" style="background: #eee;" onclick="recusarCorrida()">RECUSAR</button>
         </div>
@@ -57,13 +54,14 @@
 
     <div id="m-viagem" class="screen">
         <div class="card">
-            <h4 id="p-nome">Passageiro</h4>
-            <p id="p-destino" style="font-size: 13px; color: #666;"></p>
+            <h2 style="color:var(--success)">EM VIAGEM</h2>
+            <p id="info-viagem" style="margin: 20px 0;"></p>
             <button class="btn btn-yellow" onclick="finalizarCorrida()">FINALIZAR CORRIDA</button>
         </div>
     </div>
 
     <script>
+    // CONFIGURAÇÃO DO SEU FIREBASE
     const firebaseConfig = { databaseURL: "https://meuappmobilidade-a6f93-default-rtdb.firebaseio.com" };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
@@ -74,17 +72,25 @@
     let idCorridaAtiva = null;
     const somAlerta = document.getElementById('audioNotificacao');
 
-    function fazerLogin() { mostrarTela('m-status'); document.getElementById('nome-exibicao').innerText = motorista.nome; }
+    function fazerLogin() { 
+        // Importante: tocar e pausar o som no login para o navegador liberar o áudio
+        somAlerta.play().then(() => { somAlerta.pause(); }).catch(e => console.log("Som habilitado"));
+        mostrarTela('m-status'); 
+        document.getElementById('nome-exibicao').innerText = motorista.nome; 
+    }
 
     function toggleOnline() {
         isOnline = !isOnline;
         const btn = document.getElementById('btn-toggle');
+        const txt = document.getElementById('txt-status');
         if(isOnline) {
             btn.innerText = "FICAR OFFLINE"; btn.className = "btn btn-red";
+            txt.innerText = "Você está Online e visível";
             iniciarGPS();
             ouvirCorridas();
         } else {
             btn.innerText = "FICAR ONLINE"; btn.className = "btn btn-yellow";
+            txt.innerText = "Você está Offline";
             pararGPS();
         }
     }
@@ -118,32 +124,35 @@
     }
 
     function exibirChamada(dados) {
-        // TOCA O SOM AUTOMATICAMENTE
-        somAlerta.play().catch(e => console.log("Som aguardando toque"));
-        
+        // TOCA O SOM E VIBRA
+        somAlerta.play();
+        if (navigator.vibrate) navigator.vibrate([500, 200, 500]);
+
         document.getElementById('detalhes-chamada').innerHTML = `
+            <b>CLIENTE:</b> ${dados.cliente || 'Passageiro'}<br>
             <b>DE:</b> ${dados.origem}<br>
             <b>PARA:</b> ${dados.destino}<br>
-            <b>VALOR:</b> R$ ${dados.valor}
+            <b style="color:var(--success); font-size:20px;">VALOR: R$ ${dados.valor}</b>
         `;
+        document.getElementById('info-viagem').innerText = `Levando ${dados.cliente || 'Passageiro'} para ${dados.destino}`;
         mostrarTela('m-chamada');
     }
 
     function aceitarCorrida() {
-        somAlerta.pause(); // PARA O SOM
+        somAlerta.pause();
         somAlerta.currentTime = 0;
-        db.ref('corridas_abertas/' + idCorridaAtiva).update({ status: "Aceita", nomeMotorista: motorista.nome });
+        db.ref('corridas_abertas/' + idCorridaAtiva).update({ status: "Aceita", motorista: motorista.nome });
         mostrarTela('m-viagem');
     }
 
     function recusarCorrida() {
-        somAlerta.pause(); // PARA O SOM
+        somAlerta.pause();
         idCorridaAtiva = null;
         mostrarTela('m-status');
     }
 
     function finalizarCorrida() {
-        db.ref('corridas_abertas/' + idCorridaAtiva).update({ status: "Finalizada" });
+        db.ref('corridas_abertas/' + idCorridaAtiva).remove();
         idCorridaAtiva = null;
         mostrarTela('m-status');
     }
@@ -152,7 +161,6 @@
         document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
         document.getElementById(id).classList.add('active');
     }
-    function logout() { pararGPS(); location.reload(); }
     </script>
 </body>
 </html>
