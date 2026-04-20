@@ -2,203 +2,247 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PINDAVAI - Passageiro</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PINDAVAI - CENTRAL MASTER V5.1</title>
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.js"></script>
 
     <style>
-        :root { --pindavai: #ffcc00; --dark: #1a1a1a; --gray: #f4f4f4; }
-        body, html { margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; height: 100%; overflow: hidden; background: var(--gray); }
+        :root { --primary: #1a73e8; --bg: #f8f9fa; --sidebar: #1a1a1a; --text: #333; --pindavai: #ffcc00; --danger: #dc3545; --success: #28a745; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); display: flex; height: 100vh; margin: 0; overflow: hidden; }
 
-        /* Telas */
-        .screen { display: none; height: 100vh; width: 100%; flex-direction: column; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box; }
-        .active { display: flex; }
+        .sidebar { width: 70px; height: 100vh; background: var(--sidebar); display: flex; flex-direction: column; transition: 0.3s; z-index: 1000; flex-shrink: 0; }
+        .sidebar:hover { width: 240px; }
+        .logo-area { padding: 20px 0; text-align: center; color: var(--pindavai); border-bottom: 1px solid #333; }
+        .nav-link { padding: 15px 23px; display: flex; align-items: center; color: #bbb; cursor: pointer; white-space: nowrap; transition: 0.2s; text-decoration: none; }
+        .nav-link:hover { color: #fff; background: rgba(255,255,255,0.05); }
+        .nav-link.active { color: var(--pindavai); background: rgba(255, 204, 0, 0.1); border-left: 4px solid var(--pindavai); }
+        .nav-link span { margin-left: 15px; opacity: 0; font-size: 14px; font-weight: 500; }
+        .sidebar:hover .nav-link span { opacity: 1; }
 
-        /* Estilo Formulários */
-        .auth-card { background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 400px; text-align: center; }
-        .logo { font-size: 32px; font-weight: bold; margin-bottom: 20px; color: var(--dark); }
-        .logo span { color: var(--pindavai); }
+        .main-wrapper { flex-grow: 1; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        .top-bar { background: #fff; height: 60px; display: flex; align-items: center; padding: 0 25px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); justify-content: space-between; }
         
-        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
-        button { width: 100%; padding: 15px; border: none; border-radius: 8px; font-weight: bold; font-size: 16px; cursor: pointer; transition: 0.3s; }
-        .btn-main { background: var(--pindavai); color: #000; }
-        .btn-link { background: none; color: var(--primary); font-size: 14px; margin-top: 10px; }
+        .content { flex: 1; position: relative; overflow-y: auto; padding-bottom: 50px; }
+        .tab { display: none; padding: 30px; animation: fadeIn 0.3s; }
+        .active-tab { display: block; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
-        /* Tela do Mapa */
-        #map { flex: 1; width: 100%; }
-        .map-panel { height: 280px; background: white; width: 100%; border-radius: 25px 25px 0 0; position: relative; top: -25px; padding: 20px; box-sizing: border-box; box-shadow: 0 -5px 15px rgba(0,0,0,0.1); z-index: 1000; }
-        .price-tag { font-size: 24px; font-weight: bold; text-align: center; margin: 15px 0; display: block; }
+        #map { width: 100%; height: 100%; position: absolute; top: 0; left: 0; }
+        .card { background: #fff; border-radius: 12px; padding: 25px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); margin-bottom: 20px; }
         
-        /* Foto de Perfil */
-        .profile-img-preview { width: 80px; height: 80px; border-radius: 50%; background: #eee; margin: 10px auto; object-fit: cover; border: 2px solid var(--pindavai); }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; background: white; }
+        th { text-align: left; background: #f1f1f1; padding: 12px; font-size: 13px; color: #666; }
+        td { padding: 12px; border-bottom: 1px solid #eee; font-size: 14px; }
+        
+        .status-badge { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; text-transform: uppercase; }
+        .status-ativo { background: #e8f5e9; color: var(--success); }
+        .status-bloqueado { background: #ffebee; color: var(--danger); }
+
+        .grid-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; }
+        .input-group { display: flex; flex-direction: column; gap: 5px; margin-bottom: 10px; }
+        label { font-size: 11px; font-weight: 700; color: #666; }
+        input { padding: 10px; border: 1px solid #ddd; border-radius: 6px; }
+
+        .btn-action { padding: 6px 12px; border-radius: 6px; border: none; cursor: pointer; font-size: 11px; font-weight: bold; }
+        .btn-save { background: var(--pindavai); color: #000; border: none; padding: 15px; border-radius: 6px; font-weight: bold; cursor: pointer; width: 100%; }
+
+        #toast { position: fixed; top: 20px; right: -400px; background: #222; color: #fff; padding: 15px 25px; border-radius: 10px; transition: 0.5s; z-index: 9999; }
     </style>
 </head>
-<body>
+<body onload="initApp()">
 
-    <div id="screen-login" class="screen active">
-        <div class="auth-card">
-            <div class="logo">PINDA<span>VAÍ</span></div>
-            <input type="email" id="login-email" placeholder="E-mail">
-            <input type="password" id="login-senha" placeholder="Senha">
-            <button class="btn-main" onclick="acaoLogin()">ENTRAR</button>
-            <button class="btn-link" onclick="navegar('screen-cadastro')">Criar nova conta</button>
-        </div>
-    </div>
+    <div id="toast">Sucesso!</div>
 
-    <div id="screen-cadastro" class="screen">
-        <div class="auth-card">
-            <h3>Crie sua conta</h3>
-            <img id="preview" class="profile-img-preview" src="https://cdn-icons-png.flaticon.com/512/149/149071.png">
-            <input type="text" id="cad-nome" placeholder="Nome Completo">
-            <input type="text" id="cad-cpf" placeholder="CPF">
-            <input type="email" id="cad-email" placeholder="E-mail">
-            <input type="password" id="cad-senha" placeholder="Senha">
-            <button class="btn-main" onclick="acaoCadastro()">CADASTRAR AGORA</button>
-            <button class="btn-link" onclick="navegar('screen-login')">Voltar ao Login</button>
-        </div>
-    </div>
+    <nav class="sidebar">
+        <div class="logo-area"><i class="fas fa-headset fa-2x"></i></div>
+        <div class="nav-link active" onclick="switchTab('aba-mapa')"><i class="fas fa-map-location-dot"></i><span>Mapa Principal</span></div>
+        <div class="nav-link" onclick="switchTab('aba-tarifas')"><i class="fas fa-dollar-sign"></i><span>Tarifas</span></div>
+        <div class="nav-link" onclick="switchTab('aba-pass')"><i class="fas fa-users"></i><span>Gestão Passageiros</span></div>
+        <div class="nav-link" onclick="switchTab('aba-moto')"><i class="fas fa-car-side"></i><span>Motoristas</span></div>
+    </nav>
 
-    <div id="screen-app" class="screen" style="padding:0;">
-        <div id="map"></div>
-        <div class="map-panel">
-            <input type="text" id="inp-origem" placeholder="Sua localização" readonly>
-            <input type="text" id="inp-destino" placeholder="Para onde você vai?">
-            <div class="price-tag" id="display-preco">R$ 0,00</div>
-            <button class="btn-main" onclick="pedirCorrida()">SOLICITAR PINDAVAÍ</button>
-        </div>
+    <div class="main-wrapper">
+        <header class="top-bar">
+            <div style="font-weight: bold;">CENTRAL MASTER <span style="color: var(--pindavai)">PINDAVAÍ</span></div>
+            <div id="monitor-status" style="font-size: 12px; color: var(--success);"><i class="fas fa-circle"></i> Monitorando Firebase</div>
+        </header>
+
+        <main class="content">
+            <div id="aba-mapa" class="tab active-tab" style="padding:0; height: 100%;">
+                <div id="map"></div>
+            </div>
+
+            <div id="aba-tarifas" class="tab">
+                <h1>Configuração de <span style="color:var(--pindavai)">Tarifas</span></h1>
+                <div class="card">
+                    <div class="grid-form">
+                        <div class="input-group"><label>Tarifa Base (R$)</label><input type="number" id="tarifa-base" step="0.01"></div>
+                        <div class="input-group"><label>Valor por KM (R$)</label><input type="number" id="tarifa-km" step="0.01"></div>
+                        <div class="input-group"><label>Valor por Minuto (R$)</label><input type="number" id="tarifa-min" step="0.01"></div>
+                        <div class="input-group"><label>Valor de Parada (R$)</label><input type="number" id="tarifa-parada" step="0.01"></div>
+                        <div class="input-group"><label>Valor de Cancelamento (R$)</label><input type="number" id="tarifa-cancel" step="0.01"></div>
+                        <div class="input-group"><label>Até 50 KM (R$/KM)</label><input type="number" id="tarifa-km-50" step="0.01"></div>
+                        <div class="input-group"><label>50 a 100 KM (R$/KM)</label><input type="number" id="tarifa-km-100" step="0.01"></div>
+                        <div class="input-group"><label>100 a 500 KM (R$/KM)</label><input type="number" id="tarifa-km-500" step="0.01"></div>
+                    </div>
+                    <button class="btn-save" style="margin-top:20px" onclick="salvarTarifas()">SALVAR NOVAS TARIFAS</button>
+                </div>
+            </div>
+
+            <div id="aba-pass" class="tab">
+                <h1>Gestão de <span style="color:var(--pindavai)">Passageiros</span></h1>
+                
+                <div class="card">
+                    <h3>Cadastrar Novo Passageiro</h3>
+                    <div class="grid-form">
+                        <div class="input-group"><label>Nome</label><input type="text" id="p-nome"></div>
+                        <div class="input-group"><label>CPF</label><input type="text" id="p-cpf"></div>
+                        <div class="input-group"><label>Telefone/WhatsApp</label><input type="text" id="p-tel" placeholder="(00) 00000-0000"></div>
+                        <div class="input-group"><label>E-mail</label><input type="email" id="p-email"></div>
+                        <div class="input-group"><label>Senha Inicial</label><input type="text" id="p-senha" value="123456"></div>
+                    </div>
+                    <button class="btn-save" style="width:auto; padding: 10px 30px; margin-top:15px" onclick="cadastrarPassageiroCentral()">EFETUAR CADASTRO</button>
+                </div>
+
+                <div class="card" style="overflow-x: auto;">
+                    <h3>Lista de Usuários</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Nome</th>
+                                <th>WhatsApp</th>
+                                <th>CPF</th>
+                                <th>E-mail</th>
+                                <th>Nota</th>
+                                <th>Status</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="lista-passageiros"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="aba-moto" class="tab">
+                <h1>Gestão de Motoristas</h1>
+                <div class="card"><p>Aguardando integração do módulo de motoristas...</p></div>
+            </div>
+        </main>
     </div>
 
     <script>
-        // --- CONFIGURAÇÃO FIREBASE ---
         const firebaseConfig = { databaseURL: "https://meuappmobilidade-a6f93-default-rtdb.firebaseio.com" };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
-        let map, routingControl, userPos = null;
-        let valorCalculado = 0;
-
-        // --- NAVEGAÇÃO ENTRE TELAS ---
-        function navegar(screenId) {
-            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-            document.getElementById(screenId).classList.add('active');
-            if(screenId === 'screen-app') initMap();
+        function initApp() {
+            initMap();
+            carregarTarifas();
+            listarPassageiros();
         }
 
-        // --- LÓGICA DE LOGIN ---
-        function acaoLogin() {
-            const email = document.getElementById('login-email').value;
-            const senha = document.getElementById('login-senha').value;
-
-            db.ref('passageiros').orderByChild('email').equalTo(email).once('value', snap => {
-                if (snap.exists()) {
-                    const id = Object.keys(snap.val())[0];
-                    const user = snap.val()[id];
-
-                    if (user.senha === senha) {
-                        if (user.status === "bloqueado") {
-                            alert("Sua conta está BLOQUEADA pela Central. Motivo: Avaliação baixa ou restrição administrativa.");
-                        } else {
-                            localStorage.setItem('pindavai_user', JSON.stringify({id, ...user}));
-                            navegar('screen-app');
-                        }
-                    } else { alert("Senha incorreta!"); }
-                } else { alert("Usuário não encontrado. Faça o cadastro!"); }
-            });
-        }
-
-        // --- LÓGICA DE CADASTRO ---
-        function acaoCadastro() {
-            const dados = {
-                nome: document.getElementById('cad-nome').value,
-                cpf: document.getElementById('cad-cpf').value,
-                email: document.getElementById('cad-email').value,
-                senha: document.getElementById('cad-senha').value,
-                status: "ativo",
-                nota: 5.0,
-                foto: "https://cdn-icons-png.flaticon.com/512/149/149071.png"
-            };
-
-            if(!dados.nome || !dados.email || !dados.senha) return alert("Preencha os campos obrigatórios!");
-
-            db.ref('passageiros').push(dados).then(() => {
-                alert("Cadastro realizado com sucesso!");
-                navegar('screen-login');
-            });
-        }
-
-        // --- MAPA E CÁLCULOS ---
         function initMap() {
-            if(map) return;
-            map = L.map('map').setView([-22.9255, -45.4548], 14);
+            var map = L.map('map').setView([-22.9255, -45.4548], 14);
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+        }
 
-            navigator.geolocation.getCurrentPosition(p => {
-                userPos = [p.coords.latitude, p.coords.longitude];
-                map.setView(userPos, 15);
-                L.marker(userPos).addTo(map).bindPopup("Você").openPopup();
-                document.getElementById('inp-origem').value = "Minha Localização";
+        function switchTab(id) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active-tab'));
+            document.getElementById(id).classList.add('active-tab');
+            document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+            if(event) event.currentTarget.classList.add('active');
+        }
+
+        function carregarTarifas() {
+            db.ref('configuracoes/tarifas').on('value', snap => {
+                const t = snap.val();
+                if(t) {
+                    document.getElementById('tarifa-base').value = t.base || "";
+                    document.getElementById('tarifa-km').value = t.km || "";
+                    document.getElementById('tarifa-min').value = t.minuto || "";
+                    document.getElementById('tarifa-parada').value = t.parada || "";
+                    document.getElementById('tarifa-cancel').value = t.cancelamento || "";
+                    document.getElementById('tarifa-km-50').value = t.km_ate_50 || "";
+                    document.getElementById('tarifa-km-100').value = t.km_50_a_100 || "";
+                    document.getElementById('tarifa-km-500').value = t.km_100_a_500 || "";
+                }
             });
         }
 
-        // Simulação de Destino (Para testar o preço)
-        document.getElementById('inp-destino').addEventListener('change', function() {
-            // Simulação: Ao digitar algo, traça uma rota fixa para teste de 12km ou 60km
-            // Em produção, você usa Geocoding aqui.
-            const coordsDestino = [-22.9500, -45.5000]; 
-            tracarRota(userPos, coordsDestino);
-        });
-
-        async function tracarRota(start, end) {
-            if(routingControl) map.removeControl(routingControl);
-
-            routingControl = L.Routing.control({
-                waypoints: [L.latLng(start), L.latLng(end)],
-                routeWhileDragging: false,
-                addWaypoints: false,
-                lineOptions: { styles: [{ color: '#ffcc00', weight: 6 }] }
-            }).on('routesfound', async function(e) {
-                const r = e.routes[0];
-                const dist = r.summary.totalDistance / 1000;
-                const tempo = r.summary.totalTime / 60;
-                
-                valorCalculado = await calcularTarifaPindavai(dist, tempo);
-                document.getElementById('display-preco').innerText = `R$ ${valorCalculado.toFixed(2)}`;
-            }).addTo(map);
+        function salvarTarifas() {
+            const dados = {
+                base: document.getElementById('tarifa-base').value,
+                km: document.getElementById('tarifa-km').value,
+                minuto: document.getElementById('tarifa-min').value,
+                parada: document.getElementById('tarifa-parada').value,
+                cancelamento: document.getElementById('tarifa-cancel').value,
+                km_ate_50: document.getElementById('tarifa-km-50').value,
+                km_50_a_100: document.getElementById('tarifa-km-100').value,
+                km_100_a_500: document.getElementById('tarifa-km-500').value
+            };
+            db.ref('configuracoes/tarifas').set(dados).then(() => notificar("Tarifas Salvas!"));
         }
 
-        async function calcularTarifaPindavai(km, min) {
-            const snap = await db.ref('configuracoes/tarifas').once('value');
-            const t = snap.val();
-            if(!t) return 0;
-
-            let kmPrice = parseFloat(t.km); // Padrão cidade
-
-            // Aplicação das Faixas de Longa Distância
-            if (km > 100 && km <= 500) kmPrice = parseFloat(t.km_100_a_500);
-            else if (km > 50 && km <= 100) kmPrice = parseFloat(t.km_50_a_100);
-            else if (km > 15 && km <= 50) kmPrice = parseFloat(t.km_ate_50);
-
-            const total = parseFloat(t.base) + (km * kmPrice) + (min * parseFloat(t.minuto));
-            return total;
+        function cadastrarPassageiroCentral() {
+            const novo = {
+                nome: document.getElementById('p-nome').value,
+                cpf: document.getElementById('p-cpf').value,
+                telefone: document.getElementById('p-tel').value,
+                email: document.getElementById('p-email').value,
+                senha: document.getElementById('p-senha').value,
+                status: "ativo",
+                nota: 5.0
+            };
+            db.ref('passageiros').push(novo).then(() => {
+                notificar("Passageiro cadastrado!");
+                document.querySelectorAll('#aba-pass input').forEach(i => i.value = "");
+                document.getElementById('p-senha').value = "123456";
+            });
         }
 
-        function pedirCorrida() {
-            if(valorCalculado === 0) return alert("Defina um destino primeiro!");
-            const user = JSON.parse(localStorage.getItem('pindavai_user'));
-            
-            db.ref('corridas').push({
-                cliente_id: user.id,
-                cliente_nome: user.nome,
-                valor: valorCalculado.toFixed(2),
-                status: "procurando",
-                timestamp: Date.now()
-            }).then(() => alert("Chamada enviada! Aguardando motorista..."));
+        function listarPassageiros() {
+            db.ref('passageiros').on('value', snap => {
+                const lista = document.getElementById('lista-passageiros');
+                lista.innerHTML = "";
+                snap.forEach(child => {
+                    const p = child.val();
+                    const id = child.key;
+                    const statusClass = p.status === 'ativo' ? 'status-ativo' : 'status-bloqueado';
+                    
+                    lista.innerHTML += `
+                        <tr>
+                            <td>${p.nome}</td>
+                            <td>${p.telefone || 'N/A'}</td>
+                            <td>${p.cpf}</td>
+                            <td>${p.email}</td>
+                            <td>⭐ ${p.nota}</td>
+                            <td><span class="status-badge ${statusClass}">${p.status}</span></td>
+                            <td>
+                                ${p.status === 'ativo' ? 
+                                    `<button class="btn-action" style="background:#ffcdd2; color:#b71c1c" onclick="mudarStatus('${id}', 'bloqueado')">BLOQUEAR</button>` : 
+                                    `<button class="btn-action" style="background:#c8e6c9; color:#1b5e20" onclick="mudarStatus('${id}', 'ativo')">ATIVAR</button>`
+                                }
+                            </td>
+                        </tr>
+                    `;
+                });
+            });
+        }
+
+        function mudarStatus(id, novoStatus) {
+            db.ref(`passageiros/${id}`).update({ status: novoStatus })
+                .then(() => notificar("Status do usuário alterado!"));
+        }
+
+        function notificar(msg) {
+            const t = document.getElementById('toast');
+            t.innerText = msg; t.style.right = '20px';
+            setTimeout(() => { t.style.right = '-400px'; }, 3000);
         }
     </script>
 </body>
