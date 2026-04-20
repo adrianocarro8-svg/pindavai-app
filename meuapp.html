@@ -40,7 +40,7 @@
         <div class="card">
             <h3>Cadastro de Motorista</h3>
             <input type="text" id="c-nome" placeholder="Nome Completo">
-            <input type="text" id="c-cpf" placeholder="CPF">
+            <input type="text" id="c-tel" placeholder="Telefone / WhatsApp"> <input type="text" id="c-cpf" placeholder="CPF">
             <input type="text" id="c-modelo" placeholder="Modelo do Carro (ex: Onix)">
             <input type="text" id="c-placa" placeholder="Placa do Veículo">
             <input type="email" id="c-email" placeholder="E-mail">
@@ -84,31 +84,40 @@
     </div>
 
     <script>
-    const firebaseConfig = { 
-        databaseURL: "https://meuappmobilidade-a6f93-default-rtdb.firebaseio.com" 
-    };
+    const firebaseConfig = { databaseURL: "https://meuappmobilidade-a6f93-default-rtdb.firebaseio.com" };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
     let dadosMotorista = null;
+    let motoristaId = null; // Guardar o ID real do banco
     let isOnline = false, idCorridaAtiva = null, dadosCorridaAtual = null, etapaViagem = "buscar";
     const somAlerta = document.getElementById('audioNotificacao');
 
-    // Cadastro de Motorista com Documentos
+    // Cadastro de Motorista Atualizado
     async function acaoCadastroMotorista() {
         const nome = document.getElementById('c-nome').value;
+        const telefone = document.getElementById('c-tel').value; // Pegando telefone
         const cpf = document.getElementById('c-cpf').value;
         const modelo = document.getElementById('c-modelo').value;
         const placa = document.getElementById('c-placa').value;
         const email = document.getElementById('c-email').value;
         const senha = document.getElementById('c-senha').value;
 
-        if(!nome || !placa || !email) return alert("Preencha os dados obrigatórios!");
+        if(!nome || !telefone || !email) return alert("Preencha Nome, Telefone e E-mail!");
 
         await db.ref('motoristas').push({
-            nome, cpf, modelo, placa, email, senha, status: "ativo"
+            nome, 
+            telefone, 
+            cpf, 
+            modelo, 
+            placa, 
+            email, 
+            senha, 
+            status: "ativo",
+            nota: 5.0 // Todo motorista começa com nota máxima
         });
-        alert("Cadastro realizado! Agora faça login.");
+        
+        alert("Cadastro realizado com sucesso!");
         mostrarTela('m-login');
     }
 
@@ -118,22 +127,24 @@
 
         db.ref('motoristas').orderByChild('email').equalTo(email).once('value', snap => {
             if(snap.exists()){
-                const user = Object.values(snap.val())[0];
+                const id = Object.keys(snap.val())[0];
+                const user = snap.val()[id];
+
                 if(user.senha === senha) {
                     dadosMotorista = user;
+                    motoristaId = id; // Guardamos o ID para avaliações futuras
                     document.getElementById('nome-exibicao').innerText = "Olá, " + user.nome;
                     mostrarTela('m-status');
-                    somAlerta.play().then(() => somAlerta.pause());
                 } else alert("Senha incorreta");
             } else alert("Motorista não encontrado");
         });
     }
 
+    // ... (restante das funções toggleOnline e ouvirCorridas permanecem iguais)
     function toggleOnline() {
         isOnline = !isOnline;
         const btn = document.getElementById('btn-toggle');
         const statusTxt = document.getElementById('status-text');
-        
         if(isOnline) {
             btn.innerText = "FICAR OFFLINE"; btn.className = "btn btn-red";
             statusTxt.innerText = "VOCÊ ESTÁ ONLINE - AGUARDANDO CORRIDAS";
@@ -148,7 +159,6 @@
     }
 
     function ouvirCorridas() {
-        // Escuta a pasta que o passageiro cria
         db.ref('corridas_pendentes').on('value', snap => {
             if(!isOnline || idCorridaAtiva) return;
             const corridas = snap.val();
@@ -169,7 +179,6 @@
             <b>PASSAGEIRO:</b> ${dados.passageiroNome}<br>
             <b>PARTIDA:</b> ${dados.partida}<br>
             <b>DESTINO:</b> ${dados.destino}<br>
-            <b>PAGAMENTO:</b> ${dados.pagamento}<br>
             <h3 style="margin-top:10px; color:green;">${dados.valor}</h3>
         `;
         mostrarTela('m-chamada');
@@ -183,9 +192,9 @@
         document.getElementById('btn-proximo').style.display = "flex";
         document.getElementById('btn-finalizar').style.display = "none";
         
-        // Atualiza o status para o passageiro saber
         db.ref('corridas_pendentes/' + idCorridaAtiva).update({ 
             status: "A caminho", 
+            motoristaId: motoristaId, // Importante para avaliação
             motoristaNome: dadosMotorista.nome,
             motoristaPlaca: dadosMotorista.placa 
         });
@@ -203,24 +212,19 @@
 
     function abrirGPS() {
         let local = (etapaViagem === "buscar") ? dadosCorridaAtual.partida : dadosCorridaAtual.destino;
-        let url = "https://www.google.com/maps/dir/?api=1&destination=" + encodeURIComponent(local) + "&travelmode=driving";
-        window.location.href = url;
+        window.location.href = "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(local);
     }
 
     function finalizarCorrida() {
-        // Move para histórico ou apenas remove
-        db.ref('corridas_pendentes/' + idCorridaAtiva).remove();
-        idCorridaAtiva = null;
-        alert("Viagem Finalizada!");
-        mostrarTela('m-status');
+        // Antes de remover, avisamos o passageiro que acabou para ele poder avaliar
+        db.ref('corridas_pendentes/' + idCorridaAtiva).update({ status: "Finalizada" }).then(() => {
+            alert("Corrida Finalizada! O passageiro poderá te avaliar agora.");
+            idCorridaAtiva = null;
+            mostrarTela('m-status');
+        });
     }
 
-    function recusarCorrida() { 
-        somAlerta.pause(); 
-        idCorridaAtiva = null; 
-        mostrarTela('m-status'); 
-    }
-
+    function recusarCorrida() { somAlerta.pause(); idCorridaAtiva = null; mostrarTela('m-status'); }
     function mostrarTela(id) { 
         document.querySelectorAll('.screen').forEach(s => s.classList.remove('active')); 
         document.getElementById(id).classList.add('active'); 
