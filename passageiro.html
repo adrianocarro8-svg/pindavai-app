@@ -4,46 +4,37 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>PINDAVAÍ - Passageiro</title>
-    
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
-    
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-
     <style>
         :root { --pindavai: #ffcc00; --dark: #1a1a1a; --danger: #dc3545; }
         body, html { margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; height: 100%; background: #f4f4f4; overflow: hidden; }
         .screen { display: none; height: 100vh; flex-direction: column; }
         .active { display: flex; }
-        
         .auth-container { flex: 1; display: flex; justify-content: center; align-items: center; padding: 20px; background: white; }
         .auth-card { width: 100%; max-width: 350px; text-align: center; }
         input { width: 100%; padding: 15px; margin: 8px 0; border: 1px solid #ddd; border-radius: 10px; box-sizing: border-box; font-size: 16px; }
         .btn { background: var(--pindavai); border: none; padding: 16px; width: 100%; font-weight: bold; border-radius: 10px; cursor: pointer; font-size: 16px; margin-top: 10px; }
         .btn-link { color: #1a73e8; background: none; border: none; margin-top: 15px; cursor: pointer; font-weight: bold; }
-
         #map { flex: 1; width: 100%; }
         .panel-request { background: white; padding: 20px; border-radius: 25px 25px 0 0; box-shadow: 0 -5px 15px rgba(0,0,0,0.1); position: relative; z-index: 1000; }
-        
         #status-monitor { display: none; position: fixed; bottom: 0; left: 0; right: 0; background: white; padding: 25px; border-radius: 25px 25px 0 0; z-index: 2000; box-shadow: 0 -5px 20px rgba(0,0,0,0.2); text-align: center; }
         .info-motorista { background: #f8f9fa; padding: 15px; border-radius: 12px; margin-top: 15px; display: none; text-align: left; border: 1px solid #eee; }
-        .car-icon { font-size: 24px; transition: all 0.5s linear; }
         .btn-cancelar { background: #fce8e8; color: var(--danger); border: 2px solid var(--danger); margin-top: 15px; width: 100%; padding: 12px; border-radius: 10px; font-weight: bold; cursor: pointer;}
     </style>
 </head>
 <body>
-
     <div id="p-login" class="screen active">
         <div class="auth-container">
             <div class="auth-card">
                 <h1>PINDAVAÍ</h1>
-                <p>Passageiro</p>
-                <input type="email" id="l-email" placeholder="Seu e-mail">
-                <input type="password" id="l-senha" placeholder="Sua senha">
+                <input type="email" id="l-email" placeholder="E-mail">
+                <input type="password" id="l-senha" placeholder="Senha">
                 <button class="btn" onclick="fazerLogin()">ENTRAR</button>
-                <button class="btn-link" onclick="mostrarTela('p-cadastro')">Criar nova conta</button>
+                <button class="btn-link" onclick="mostrarTela('p-cadastro')">Criar conta</button>
             </div>
         </div>
     </div>
@@ -54,7 +45,7 @@
                 <h3>Cadastro</h3>
                 <input type="text" id="c-nome" placeholder="Nome Completo">
                 <input type="email" id="c-email" placeholder="E-mail">
-                <input type="tel" id="c-tel" placeholder="WhatsApp (DDD)">
+                <input type="tel" id="c-tel" placeholder="WhatsApp">
                 <input type="text" id="c-cpf" placeholder="CPF">
                 <input type="password" id="c-senha" placeholder="Senha">
                 <button class="btn" onclick="acaoCadastroPassageiro()">FINALIZAR</button>
@@ -65,23 +56,18 @@
 
     <div id="p-app" class="screen">
         <div id="map"></div>
-        
         <div class="panel-request" id="painel-pedido">
-            <input type="text" id="partida" placeholder="📍 Onde você está?">
+            <input type="text" id="partida" placeholder="📍 Local de Embarque">
             <input type="text" id="parada" placeholder="🛑 Parada (opcional)">
-            <input type="text" id="destino" placeholder="🏁 Para onde vamos?">
+            <input type="text" id="destino" placeholder="🏁 Destino Final">
             <button class="btn" onclick="solicitarViagem()">CHAMAR PINDAVAÍ</button>
         </div>
-
         <div id="status-monitor">
-            <h3 id="status-msg" style="color: #f39c12;">🔍 Procurando motorista...</h3>
-            
+            <h3 id="status-msg">🔍 Procurando motorista...</h3>
             <div id="info-motorista-box" class="info-motorista">
                 <p><b>Motorista:</b> <span id="txt-nome-mot">---</span></p>
-                <p><b>Veículo:</b> <span id="txt-veiculo-mot">---</span></p>
                 <p><b>Placa:</b> <span id="txt-placa-mot" style="background:#333; color:#fff; padding:2px 6px; border-radius:4px;">---</span></p>
             </div>
-
             <button id="btn-cancelar-corrida" class="btn-cancelar" onclick="cancelarCorrida()">CANCELAR CORRIDA</button>
         </div>
     </div>
@@ -90,7 +76,6 @@
         const firebaseConfig = { databaseURL: "https://meuappmobilidade-a6f93-default-rtdb.firebaseio.com" };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
-
         let map, currentUser, markers = {}, idCorridaAtual = null;
 
         function mostrarTela(id) {
@@ -110,8 +95,8 @@
                         mostrarTela('p-app');
                         initMap();
                         verificarCorridaAtivaAoLogar();
-                    } else alert("Senha incorreta!");
-                } else alert("Usuário não encontrado!");
+                    } else alert("Senha incorreta");
+                } else alert("Usuário não encontrado");
             });
         }
 
@@ -119,18 +104,15 @@
             if(map) return;
             map = L.map('map').setView([-22.9255, -45.4548], 14);
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-            
             db.ref('localizacao_motoristas').on('value', snap => {
                 const motos = snap.val();
                 for(let id in markers) { if(!motos || !motos[id]) { map.removeLayer(markers[id]); delete markers[id]; } }
                 for(let id in motos) {
                     const m = motos[id];
                     let cor = (m.status === "disponivel") ? "#28a745" : (m.status === "a_caminho") ? "#dc3545" : (m.status === "em_viagem") ? "#000" : "#ffcc00";
-                    if(markers[id]) {
-                        markers[id].setLatLng([m.lat, m.lng]);
-                        markers[id].getElement().querySelector('i').style.color = cor;
-                    } else {
-                        const icon = L.divIcon({ html: `<i class="fas fa-car car-icon" style="color:${cor}"></i>`, className: 'dummy', iconSize:[30,30] });
+                    if(markers[id]) { markers[id].setLatLng([m.lat, m.lng]); markers[id].getElement().querySelector('i').style.color = cor; }
+                    else {
+                        const icon = L.divIcon({ html: `<i class="fas fa-car" style="color:${cor}; font-size:20px;"></i>`, className: 'dummy' });
                         markers[id] = L.marker([m.lat, m.lng], {icon}).addTo(map);
                     }
                 }
@@ -141,8 +123,7 @@
             db.ref('corridas_pendentes').once('value', snap => {
                 snap.forEach(c => {
                     const dados = c.val();
-                    // Só recupera se o status NÃO for finalizada
-                    if(dados.passageiroId === currentUser.id && dados.status !== "Finalizada") {
+                    if(dados.passageiroId === currentUser.id && dados.status !== "Finalizada" && dados.status !== "Cancelada") {
                         idCorridaAtual = c.key;
                         document.getElementById('painel-pedido').style.display = "none";
                         document.getElementById('status-monitor').style.display = "block";
@@ -153,19 +134,13 @@
         }
 
         function solicitarViagem() {
-            const partida = document.getElementById('partida').value;
-            const destino = document.getElementById('destino').value;
-            if(!partida || !destino) return alert("Preencha partida e destino!");
-
             const novaCorrida = {
-                passageiroId: currentUser.id,
-                passageiroNome: currentUser.nome,
-                partida: partida,
+                passageiroId: currentUser.id, passageiroNome: currentUser.nome,
+                partida: document.getElementById('partida').value,
                 parada: document.getElementById('parada').value || "Sem parada",
-                destino: destino,
+                destino: document.getElementById('destino').value,
                 status: "pendente"
             };
-
             const ref = db.ref('corridas_pendentes').push(novaCorrida);
             idCorridaAtual = ref.key;
             document.getElementById('painel-pedido').style.display = "none";
@@ -176,31 +151,20 @@
         function monitorarCorrida() {
             db.ref('corridas_pendentes/' + idCorridaAtual).on('value', snap => {
                 const c = snap.val();
-                if(!c) { location.reload(); return; }
-
+                if(!c || c.status === "Cancelada") { location.reload(); return; }
                 const msg = document.getElementById('status-msg');
-                const box = document.getElementById('info-motorista-box');
-                const btnCancel = document.getElementById('btn-cancelar-corrida');
-
                 if(c.status === "A caminho") {
-                    msg.innerText = "🚕 MOTORISTA A CAMINHO!";
-                    box.style.display = "block";
-                    btnCancel.style.display = "none"; // Motorista aceitou, some o cancelar (segurança)
+                    msg.innerText = "MOTORISTA A CAMINHO!";
+                    document.getElementById('info-motorista-box').style.display = "block";
                     document.getElementById('txt-nome-mot').innerText = c.motoristaNome;
-                    document.getElementById('txt-veiculo-mot').innerText = c.motoristaPlaca;
-                } else if(c.status === "Em Viagem") {
-                    msg.innerText = "🏁 VOCÊ ESTÁ EM VIAGEM";
-                    btnCancel.style.display = "none";
-                } else if(c.status === "Finalizada") {
-                    alert("Viagem concluída!");
-                    location.reload();
-                }
+                    document.getElementById('txt-placa-mot').innerText = c.motoristaPlaca;
+                } else if(c.status === "Finalizada") { alert("Viagem Concluída!"); location.reload(); }
             });
         }
 
         function cancelarCorrida() {
             if(confirm("Deseja cancelar?")) {
-                db.ref('corridas_pendentes/' + idCorridaAtual).remove().then(() => {
+                db.ref('corridas_pendentes/' + idCorridaAtual).update({ status: "Cancelada" }).then(() => {
                     location.reload();
                 });
             }
@@ -215,7 +179,7 @@
                 senha: document.getElementById('c-senha').value,
                 status: "ativo", nota: 5.0
             };
-            db.ref('passageiros').push(dados).then(() => { alert("Sucesso!"); mostrarTela('p-login'); });
+            db.ref('passageiros').push(dados).then(() => { alert("Cadastrado!"); mostrarTela('p-login'); });
         }
     </script>
 </body>
