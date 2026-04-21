@@ -16,7 +16,7 @@
         .active { display: flex; }
         .auth-container { flex: 1; display: flex; justify-content: center; align-items: center; padding: 20px; background: white; }
         .auth-card { width: 100%; max-width: 350px; text-align: center; }
-        input { width: 100%; padding: 15px; margin: 8px 0; border: 1px solid #ddd; border-radius: 10px; box-sizing: border-box; font-size: 16px; }
+        input, select { width: 100%; padding: 15px; margin: 8px 0; border: 1px solid #ddd; border-radius: 10px; box-sizing: border-box; font-size: 16px; background: white; }
         .btn { background: var(--pindavai); border: none; padding: 16px; width: 100%; font-weight: bold; border-radius: 10px; cursor: pointer; font-size: 16px; margin-top: 10px; }
         .btn-link { color: #1a73e8; background: none; border: none; margin-top: 15px; cursor: pointer; font-weight: bold; }
         #map { flex: 1; width: 100%; }
@@ -60,8 +60,17 @@
             <input type="text" id="partida" placeholder="📍 Local de Embarque">
             <input type="text" id="parada" placeholder="🛑 Parada (opcional)">
             <input type="text" id="destino" placeholder="🏁 Destino Final">
+            
+            <label style="display:block; text-align:left; margin-left:5px; font-weight:bold; font-size:14px;">Forma de Pagamento:</label>
+            <select id="pagamento">
+                <option value="Dinheiro">💵 Dinheiro</option>
+                <option value="PIX">💎 PIX</option>
+                <option value="Cartão">💳 Cartão (Maquininha)</option>
+            </select>
+
             <button class="btn" onclick="solicitarViagem()">CHAMAR PINDAVAÍ</button>
         </div>
+
         <div id="status-monitor">
             <h3 id="status-msg">🔍 Procurando motorista...</h3>
             <div id="info-motorista-box" class="info-motorista">
@@ -135,12 +144,16 @@
 
         function solicitarViagem() {
             const novaCorrida = {
-                passageiroId: currentUser.id, passageiroNome: currentUser.nome,
+                passageiroId: currentUser.id, 
+                passageiroNome: currentUser.nome,
                 partida: document.getElementById('partida').value,
                 parada: document.getElementById('parada').value || "Sem parada",
                 destino: document.getElementById('destino').value,
+                pagamento: document.getElementById('pagamento').value, // NOVO CAMPO
                 status: "pendente"
             };
+            if(!novaCorrida.partida || !novaCorrida.destino) return alert("Preencha origem e destino!");
+
             const ref = db.ref('corridas_pendentes').push(novaCorrida);
             idCorridaAtual = ref.key;
             document.getElementById('painel-pedido').style.display = "none";
@@ -158,7 +171,13 @@
                     document.getElementById('info-motorista-box').style.display = "block";
                     document.getElementById('txt-nome-mot').innerText = c.motoristaNome;
                     document.getElementById('txt-placa-mot').innerText = c.motoristaPlaca;
-                } else if(c.status === "Finalizada") { alert("Viagem Concluída!"); location.reload(); }
+                    document.getElementById('btn-cancelar-corrida').style.display = "none";
+                } else if(c.status === "Em Viagem") {
+                    msg.innerText = "VOCÊ ESTÁ EM VIAGEM";
+                } else if(c.status === "Finalizada") { 
+                    alert("Viagem Concluída!"); 
+                    location.reload(); 
+                }
             });
         }
 
