@@ -18,6 +18,10 @@
         .auth-card { width: 100%; max-width: 350px; text-align: center; }
         input, select { width: 100%; padding: 15px; margin: 8px 0; border: 1px solid #ddd; border-radius: 10px; box-sizing: border-box; font-size: 16px; background: white; }
         .btn { background: var(--pindavai); border: none; padding: 16px; width: 100%; font-weight: bold; border-radius: 10px; cursor: pointer; font-size: 16px; margin-top: 10px; }
+        
+        /* NOVO: Estilo para o Box de Valor */
+        .box-valor { background: #fff9db; color: #856404; padding: 12px; border-radius: 10px; margin: 10px 0; font-weight: bold; text-align: center; border: 1px dashed #ffeeba; display: none; }
+
         .btn-link { color: #1a73e8; background: none; border: none; margin-top: 15px; cursor: pointer; font-weight: bold; }
         #map { flex: 1; width: 100%; }
         .panel-request { background: white; padding: 20px; border-radius: 25px 25px 0 0; box-shadow: 0 -5px 15px rgba(0,0,0,0.1); position: relative; z-index: 1000; }
@@ -59,7 +63,7 @@
         <div class="panel-request" id="painel-pedido">
             <input type="text" id="partida" placeholder="📍 Local de Embarque">
             <input type="text" id="parada" placeholder="🛑 Parada (opcional)">
-            <input type="text" id="destino" placeholder="🏁 Destino Final">
+            <input type="text" id="destino" placeholder="🏁 Destino Final" onchange="estimarPreco()">
             
             <label style="display:block; text-align:left; margin-left:5px; font-weight:bold; font-size:14px;">Forma de Pagamento:</label>
             <select id="pagamento">
@@ -67,6 +71,10 @@
                 <option value="PIX">💎 PIX</option>
                 <option value="Cartão">💳 Cartão (Maquininha)</option>
             </select>
+
+            <div id="box-valor" class="box-valor">
+                Valor Estimado: <span id="txt-preco">Calculando...</span>
+            </div>
 
             <button class="btn" onclick="solicitarViagem()">CHAMAR PINDAVAÍ</button>
         </div>
@@ -76,6 +84,7 @@
             <div id="info-motorista-box" class="info-motorista">
                 <p><b>Motorista:</b> <span id="txt-nome-mot">---</span></p>
                 <p><b>Placa:</b> <span id="txt-placa-mot" style="background:#333; color:#fff; padding:2px 6px; border-radius:4px;">---</span></p>
+                <p><b>Valor da Viagem:</b> <span id="txt-valor-mot">---</span></p>
             </div>
             <button id="btn-cancelar-corrida" class="btn-cancelar" onclick="cancelarCorrida()">CANCELAR CORRIDA</button>
         </div>
@@ -85,11 +94,39 @@
         const firebaseConfig = { databaseURL: "https://meuappmobilidade-a6f93-default-rtdb.firebaseio.com" };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
-        let map, currentUser, markers = {}, idCorridaAtual = null;
+        let map, currentUser, markers = {}, idCorridaAtual = null, tarifas = {};
+
+        // 1. CARREGA TARIFAS DA CENTRAL MASTER
+        db.ref('configuracoes/tarifas').on('value', snap => {
+            tarifas = snap.val();
+        });
 
         function mostrarTela(id) {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             document.getElementById(id).classList.add('active');
+        }
+
+        // 2. FUNÇÃO DE CÁLCULO INTEGRADA (RESPEITANDO AS FAIXAS)
+        function estimarPreco() {
+            if (!tarifas) return;
+            
+            let kmDistancia = 55; // Simulando KM (integração futura com rota)
+            let tempoMinutos = 15;
+
+            let vBase = parseFloat(tarifas.base) || 0;
+            let vMin = parseFloat(tarifas.minuto) || 0;
+            let vKm = parseFloat(tarifas.km) || 0;
+
+            // Lógica de faixas de longa distância
+            if (kmDistancia >= 150) vKm = parseFloat(tarifas.km_100_a_500) || vKm;
+            else if (kmDistancia >= 100) vKm = parseFloat(tarifas.km_50_a_100) || vKm;
+            else if (kmDistancia >= 50) vKm = parseFloat(tarifas.km_ate_50) || vKm;
+
+            let total = vBase + (kmDistancia * vKm) + (tempoMinutos * vMin);
+            
+            document.getElementById('box-valor').style.display = "block";
+            document.getElementById('txt-preco').innerText = total.toLocaleString('pt-br',{style: 'currency', currency: 'BRL'});
+            return total.toLocaleString('pt-br',{style: 'currency', currency: 'BRL'});
         }
 
         function fazerLogin() {
@@ -119,7 +156,7 @@
                 for(let id in motos) {
                     const m = motos[id];
                     let cor = (m.status === "disponivel") ? "#28a745" : (m.status === "a_caminho") ? "#dc3545" : (m.status === "em_viagem") ? "#000" : "#ffcc00";
-                    if(markers[id]) { markers[id].setLatLng([m.lat, m.lng]); markers[id].getElement().querySelector('i').style.color = cor; }
+                    if(markers[id]) { markers[id].setLatLng([m.lat, m.lng]); }
                     else {
                         const icon = L.divIcon({ html: `<i class="fas fa-car" style="color:${cor}; font-size:20px;"></i>`, className: 'dummy' });
                         markers[id] = L.marker([m.lat, m.lng], {icon}).addTo(map);
@@ -149,8 +186,10 @@
                 partida: document.getElementById('partida').value,
                 parada: document.getElementById('parada').value || "Sem parada",
                 destino: document.getElementById('destino').value,
-                pagamento: document.getElementById('pagamento').value, // NOVO CAMPO
-                status: "pendente"
+                pagamento: document.getElementById('pagamento').value,
+                valorEstimado: document.getElementById('txt-preco').innerText,
+                status: "pendente",
+                timestamp: Date.now() // NOVO: Para regra dos 3 min
             };
             if(!novaCorrida.partida || !novaCorrida.destino) return alert("Preencha origem e destino!");
 
@@ -164,14 +203,15 @@
         function monitorarCorrida() {
             db.ref('corridas_pendentes/' + idCorridaAtual).on('value', snap => {
                 const c = snap.val();
-                if(!c || c.status === "Cancelada") { location.reload(); return; }
+                if(!c) return;
+                if(c.status === "Cancelada") { location.reload(); return; }
                 const msg = document.getElementById('status-msg');
                 if(c.status === "A caminho") {
                     msg.innerText = "MOTORISTA A CAMINHO!";
                     document.getElementById('info-motorista-box').style.display = "block";
                     document.getElementById('txt-nome-mot').innerText = c.motoristaNome;
                     document.getElementById('txt-placa-mot').innerText = c.motoristaPlaca;
-                    document.getElementById('btn-cancelar-corrida').style.display = "none";
+                    document.getElementById('txt-valor-mot').innerText = c.valorEstimado;
                 } else if(c.status === "Em Viagem") {
                     msg.innerText = "VOCÊ ESTÁ EM VIAGEM";
                 } else if(c.status === "Finalizada") { 
@@ -182,11 +222,21 @@
         }
 
         function cancelarCorrida() {
-            if(confirm("Deseja cancelar?")) {
-                db.ref('corridas_pendentes/' + idCorridaAtual).update({ status: "Cancelada" }).then(() => {
-                    location.reload();
-                });
-            }
+            db.ref('corridas_pendentes/' + idCorridaAtual).once('value', snap => {
+                const d = snap.val();
+                const agora = Date.now();
+                const diff = (agora - d.timestamp) / 1000 / 60; // diff em minutos
+
+                let aviso = "Deseja cancelar?";
+                if(diff > 3) aviso = `Já se passaram 3 min. Será cobrada taxa de ${parseFloat(tarifas.cancelamento).toLocaleString('pt-br',{style:'currency', currency:'BRL'})}. Confirmar?`;
+
+                if(confirm(aviso)) {
+                    db.ref('corridas_pendentes/' + idCorridaAtual).update({ 
+                        status: "Cancelada",
+                        taxaAplicada: diff > 3 ? tarifas.cancelamento : 0
+                    }).then(() => location.reload());
+                }
+            });
         }
 
         function acaoCadastroPassageiro() {
