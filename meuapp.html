@@ -20,6 +20,8 @@
         input { width: 100%; padding: 15px; margin: 8px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
         .btn-link { color: #1a73e8; background: none; border: none; margin-top: 15px; cursor: pointer; font-weight: bold; }
         .badge-pag { background: #e8f5e9; color: #2e7d32; padding: 5px 10px; border-radius: 5px; font-weight: bold; display: inline-block; margin-top: 10px; }
+        /* Badge para o Valor */
+        .badge-valor { background: #fff9db; color: #856404; padding: 5px 10px; border-radius: 5px; font-weight: bold; display: inline-block; margin-top: 5px; border: 1px solid #ffeeba; }
     </style>
 </head>
 <body>
@@ -72,7 +74,8 @@
     <div id="m-viagem" class="screen">
         <div class="card">
             <h2 id="titulo-viagem">INDO BUSCAR</h2>
-            <div id="pagamento-fixo" class="badge-pag"></div><br><br>
+            <div id="pagamento-fixo" class="badge-pag"></div>
+            <div id="valor-fixo" class="badge-valor"></div><br><br>
             <div id="destino-texto" style="margin-bottom:15px; font-weight:bold;"></div>
             <button class="btn btn-blue" onclick="abrirGPS()"><i class="fas fa-map-marker-alt"></i> ABRIR GPS</button>
             <button id="btn-proximo" class="btn btn-yellow" onclick="proximaEtapa()">JÁ RECOLHI O PASSAGEIRO</button>
@@ -119,7 +122,7 @@
                     dadosMotorista = user;
                     document.getElementById('nome-exibicao').innerText = "Olá, " + user.nome;
                     iniciarRastreamento();
-                    verificarRecuperacaoDeCorrida(); // Agora chama depois de definir o motoristaId
+                    verificarRecuperacaoDeCorrida();
                 } else alert("Senha incorreta");
             } else alert("E-mail não encontrado");
         });
@@ -135,6 +138,7 @@
                     recuperou = true;
                     destinoAtual = (dados.status === "Em Viagem") ? dados.destino : dados.partida;
                     document.getElementById('pagamento-fixo').innerText = "Pagamento: " + dados.pagamento;
+                    document.getElementById('valor-fixo').innerText = "Valor: " + (dados.valorEstimado || "---");
                     document.getElementById('destino-texto').innerText = "Destino: " + destinoAtual;
                     
                     if(dados.status === "Em Viagem") {
@@ -144,8 +148,14 @@
                     }
                     mostrarTela('m-viagem');
                 }
+                // LOGICA DE CANCELAMENTO COM TAXA INTEGRADA
                 if(idCorridaAtiva && c.key === idCorridaAtiva && dados.status === "Cancelada") {
-                    alert("O passageiro cancelou a corrida!");
+                    let msgCancel = "O passageiro cancelou a corrida!";
+                    if(dados.taxaAplicada > 0) {
+                        msgCancel += `\n\nTaxa de cancelamento gerada: R$ ${dados.taxaAplicada}`;
+                    }
+                    alert(msgCancel);
+                    idCorridaAtiva = null;
                     location.reload();
                 }
             });
@@ -165,11 +175,11 @@
             const c = snap.val();
             if(isOnline && !idCorridaAtiva && c.status === "pendente") {
                 idCorridaAtiva = snap.key;
-                destinoAtual = c.partida;
                 document.getElementById('detalhes-chamada').innerHTML = `
                     <b>Passageiro:</b> ${c.passageiroNome}<br>
                     <b>Buscar em:</b> ${c.partida}<br>
                     <b>Destino:</b> ${c.destino}<br>
+                    <b>Valor Estimado:</b> <span style="color:#d4af37; font-weight:bold;">${c.valorEstimado || '---'}</span><br>
                     <b>Pagamento:</b> <span style="color:green">${c.pagamento}</span>
                 `;
                 document.getElementById('audioNotificacao').play();
@@ -195,7 +205,6 @@
 
     function proximaEtapa() {
         db.ref('corridas_pendentes/' + idCorridaAtiva).update({ status: "Em Viagem" });
-        // O próprio listener de 'verificarRecuperacaoDeCorrida' vai atualizar a tela para "Em Viagem"
     }
 
     function finalizarCorrida() {
@@ -206,7 +215,8 @@
     }
 
     function abrirGPS() {
-        window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destinoAtual)}`);
+        // Link universal para abrir o App de GPS do celular (Google Maps / Waze)
+        window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destinoAtual)}`, "_blank");
     }
 
     function iniciarRastreamento() {
