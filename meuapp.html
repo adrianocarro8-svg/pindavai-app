@@ -71,7 +71,7 @@
     <div id="m-viagem" class="screen">
         <div class="card">
             <h2 id="titulo-viagem">INDO BUSCAR</h2>
-            <button class="btn btn-blue" onclick="window.open('https://www.google.com/maps/search/?api=1&query=' + currentPartida)">ABRIR GPS</button>
+            <button class="btn btn-blue" onclick="abrirGPS()">ABRIR GPS</button>
             <button id="btn-proximo" class="btn btn-yellow" onclick="proximaEtapa()">JÁ RECOLHI O PASSAGEIRO</button>
             <button id="btn-finalizar" class="btn btn-red" style="display:none;" onclick="finalizarCorrida()">FINALIZAR CORRIDA</button>
         </div>
@@ -82,26 +82,12 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    let motoristaId, dadosMotorista, watchID, currentPartida;
+    let motoristaId, dadosMotorista, watchID, currentDestino;
     let isOnline = false, idCorridaAtiva = null, etapaViagem = "buscar";
 
     function mostrarTela(id) {
         document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
         document.getElementById(id).classList.add('active');
-    }
-
-    function acaoCadastroMotorista() {
-        const dados = {
-            nome: document.getElementById('c-nome').value,
-            email: document.getElementById('c-email').value,
-            telefone: document.getElementById('c-tel').value,
-            cpf: document.getElementById('c-cpf').value,
-            modelo: document.getElementById('c-veiculo').value,
-            placa: document.getElementById('c-placa').value,
-            senha: document.getElementById('c-senha').value,
-            status: "ativo", nota: 5.0
-        };
-        db.ref('motoristas').push(dados).then(() => { alert("Cadastro Ok!"); mostrarTela('m-login'); });
     }
 
     function fazerLogin() {
@@ -114,9 +100,35 @@
                 if(dadosMotorista.senha === senha) {
                     document.getElementById('nome-exibicao').innerText = "Olá, " + dadosMotorista.nome;
                     iniciarRastreamento();
-                    mostrarTela('m-status');
+                    verificarRecuperacaoDeCorrida(); // NOVA FUNÇÃO AQUI
                 } else alert("Senha incorreta");
-            }
+            } else alert("Motorista não encontrado");
+        });
+    }
+
+    // FUNÇÃO QUE RECUPERA A CORRIDA SE O MOTORISTA CAIR
+    function verificarRecuperacaoDeCorrida() {
+        db.ref('corridas_pendentes').once('value', snap => {
+            let encontrou = false;
+            snap.forEach(c => {
+                const dados = c.val();
+                if(dados.motoristaId === motoristaId && (dados.status === "A caminho" || dados.status === "Em Viagem")) {
+                    idCorridaAtiva = c.key;
+                    currentDestino = dados.partida;
+                    etapaViagem = (dados.status === "Em Viagem") ? "levar" : "buscar";
+                    
+                    if(etapaViagem === "levar") {
+                        document.getElementById('titulo-viagem').innerText = "EM VIAGEM (PRETO)";
+                        document.getElementById('btn-proximo').style.display = "none";
+                        document.getElementById('btn-finalizar').style.display = "block";
+                    }
+                    
+                    isOnline = true; // Mantém online para continuar rastreando
+                    mostrarTela('m-viagem');
+                    encontrou = true;
+                }
+            });
+            if(!encontrou) mostrarTela('m-status');
         });
     }
 
@@ -136,32 +148,14 @@
         }, null, { enableHighAccuracy: true });
     }
 
-    function toggleOnline() {
-        isOnline = !isOnline;
-        document.getElementById('status-text').innerText = isOnline ? "ONLINE (VERDE)" : "OFFLINE (AMARELO)";
-        document.getElementById('status-text').style.color = isOnline ? "green" : "orange";
-        if(isOnline) ouvirCorridas();
-        navigator.geolocation.getCurrentPosition(pos => atualizarLocalizacaoNoBanco(pos.coords.latitude, pos.coords.longitude));
-    }
-
-    function ouvirCorridas() {
-        db.ref('corridas_pendentes').on('value', snap => {
-            if(!isOnline || idCorridaAtiva) return;
-            snap.forEach(c => {
-                if(c.val().status === "pendente") {
-                    idCorridaAtiva = c.key;
-                    currentPartida = c.val().partida;
-                    document.getElementById('detalhes-chamada').innerText = "Destino: " + currentPartida;
-                    document.getElementById('audioNotificacao').play();
-                    mostrarTela('m-chamada');
-                }
-            });
-        });
-    }
-
     function aceitarCorrida() {
         etapaViagem = "buscar";
-        db.ref('corridas_pendentes/' + idCorridaAtiva).update({ status: "A caminho", motoristaNome: dadosMotorista.nome, motoristaPlaca: dadosMotorista.placa });
+        db.ref('corridas_pendentes/' + idCorridaAtiva).update({ 
+            status: "A caminho", 
+            motoristaId: motoristaId, // Importante salvar o ID para recuperar depois
+            motoristaNome: dadosMotorista.nome, 
+            motoristaPlaca: dadosMotorista.placa 
+        });
         document.getElementById('audioNotificacao').pause();
         mostrarTela('m-viagem');
     }
@@ -172,7 +166,7 @@
         document.getElementById('titulo-viagem').innerText = "EM VIAGEM (PRETO)";
         document.getElementById('btn-proximo').style.display = "none";
         document.getElementById('btn-finalizar').style.display = "block";
-        navigator.geolocation.getCurrentPosition(pos => atualizarLocalizacaoNoBanco(pos.coords.latitude, pos.coords.longitude));
+        enviarPosicaoManual();
     }
 
     function finalizarCorrida() {
@@ -182,9 +176,56 @@
         });
     }
 
+    function enviarPosicaoManual() {
+        navigator.geolocation.getCurrentPosition(pos => atualizarLocalizacaoNoBanco(pos.coords.latitude, pos.coords.longitude));
+    }
+
+    function toggleOnline() {
+        isOnline = !isOnline;
+        document.getElementById('status-text').innerText = isOnline ? "ONLINE (VERDE)" : "OFFLINE (AMARELO)";
+        document.getElementById('status-text').style.color = isOnline ? "green" : "orange";
+        if(isOnline) ouvirCorridas();
+        enviarPosicaoManual();
+    }
+
+    function ouvirCorridas() {
+        db.ref('corridas_pendentes').on('value', snap => {
+            if(!isOnline || idCorridaAtiva) return;
+            snap.forEach(c => {
+                if(c.val().status === "pendente") {
+                    idCorridaAtiva = c.key;
+                    currentDestino = c.val().partida;
+                    document.getElementById('detalhes-chamada').innerText = "Buscar em: " + currentDestino;
+                    document.getElementById('audioNotificacao').play();
+                    mostrarTela('m-chamada');
+                }
+            });
+        });
+    }
+
+    function abrirGPS() {
+        window.open(`https://www.google.com/maps/search/?api=1&query=${currentDestino}`);
+    }
+
     function sairApp() {
-        navigator.geolocation.clearWatch(watchID);
-        db.ref('localizacao_motoristas/' + motoristaId).remove().then(() => location.reload());
+        if(confirm("Deseja deslogar?")) {
+            navigator.geolocation.clearWatch(watchID);
+            db.ref('localizacao_motoristas/' + motoristaId).remove().then(() => location.reload());
+        }
+    }
+
+    function acaoCadastroMotorista() {
+        const dados = {
+            nome: document.getElementById('c-nome').value,
+            email: document.getElementById('c-email').value,
+            telefone: document.getElementById('c-tel').value,
+            cpf: document.getElementById('c-cpf').value,
+            modelo: document.getElementById('c-veiculo').value,
+            placa: document.getElementById('c-placa').value,
+            senha: document.getElementById('c-senha').value,
+            status: "ativo", nota: 5.0
+        };
+        db.ref('motoristas').push(dados).then(() => { alert("Cadastro Ok!"); mostrarTela('m-login'); });
     }
     </script>
 </body>
