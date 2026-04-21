@@ -19,6 +19,7 @@
         .btn-blue { background: var(--blue); color: #fff; }
         .destaque { color: var(--blue); font-weight: bold; font-size: 16px; display: block; margin: 10px 0; background: #eef4ff; padding: 10px; border-radius: 8px; border: 1px dashed var(--blue); }
         input { width: 100%; padding: 15px; margin: 8px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+        .btn-sair { position: absolute; top: 20px; right: 20px; background: #eee; padding: 8px 15px; border-radius: 8px; font-size: 12px; cursor: pointer; border: none; }
     </style>
 </head>
 <body>
@@ -28,13 +29,28 @@
     <div id="m-login" class="screen active">
         <div class="card">
             <h1>PINDAVAÍ</h1>
+            <p>Motorista</p>
             <input type="email" id="l-email" placeholder="E-mail">
             <input type="password" id="l-senha" placeholder="Senha">
             <button class="btn btn-yellow" onclick="fazerLogin()">ENTRAR</button>
+            <p onclick="mostrarTela('m-cadastro')" style="cursor:pointer; color:blue; margin-top:20px;">Quero ser motorista</p>
+        </div>
+    </div>
+
+    <div id="m-cadastro" class="screen">
+        <div class="card">
+            <h3>Novo Motorista</h3>
+            <input type="text" id="c-nome" placeholder="Nome Completo">
+            <input type="text" id="c-placa" placeholder="Placa do Veículo">
+            <input type="email" id="c-email" placeholder="E-mail">
+            <input type="password" id="c-senha" placeholder="Crie uma Senha">
+            <button class="btn btn-yellow" onclick="acaoCadastroMotorista()">CADASTRAR</button>
+            <p onclick="mostrarTela('m-login')" style="cursor:pointer; margin-top:15px;">Voltar ao Login</p>
         </div>
     </div>
 
     <div id="m-status" class="screen">
+        <button class="btn-sair" onclick="sairApp()">SAIR <i class="fas fa-sign-out-alt"></i></button>
         <div class="card">
             <h3 id="nome-exibicao">---</h3>
             <div id="status-text" style="margin-bottom:15px; font-weight:bold; color:#ffcc00;">LOGADO - OFFLINE (AMARELO)</div>
@@ -53,7 +69,7 @@
 
     <div id="m-viagem" class="screen">
         <div class="card">
-            <h2 id="titulo-viagem">INDO BUSCAR</h2>
+            <h2 id="titulo-viagem">A CAMINHO</h2>
             <span id="info-viagem" class="destaque">---</span>
             <button class="btn btn-blue" onclick="abrirGPS()">ABRIR GPS</button>
             <hr>
@@ -70,6 +86,17 @@
     let motoristaId = null, dadosMotorista = null, watchID = null;
     let isOnline = false, idCorridaAtiva = null, etapaViagem = "buscar";
 
+    function acaoCadastroMotorista() {
+        const nome = document.getElementById('c-nome').value;
+        const placa = document.getElementById('c-placa').value;
+        const email = document.getElementById('c-email').value;
+        const senha = document.getElementById('c-senha').value;
+        if(!nome || !email || !senha) return alert("Preencha tudo!");
+        db.ref('motoristas').push({ nome, placa, email, senha, status: "ativo", nota: 5.0 }).then(() => {
+            alert("Cadastro ok!"); mostrarTela('m-login');
+        });
+    }
+
     function fazerLogin() {
         const email = document.getElementById('l-email').value;
         const senha = document.getElementById('l-senha').value;
@@ -79,7 +106,7 @@
                 dadosMotorista = snap.val()[motoristaId];
                 if(dadosMotorista.senha === senha) {
                     document.getElementById('nome-exibicao').innerText = "Olá, " + dadosMotorista.nome;
-                    iniciarRastreamento(); // Começa a enviar localização (Amarelo)
+                    iniciarRastreamento();
                     verificarCorridaAtiva();
                 } else alert("Senha incorreta");
             } else alert("Não encontrado");
@@ -88,18 +115,13 @@
 
     function atualizarLocalizacaoNoBanco(lat, lng) {
         if(!motoristaId) return;
-        
-        // LÓGICA DAS 4 CORES
         let statusMapa = "logado"; // Amarelo
         if(isOnline) statusMapa = "disponivel"; // Verde
         if(idCorridaAtiva) {
             statusMapa = (etapaViagem === "buscar") ? "a_caminho" : "em_viagem"; // Vermelho ou Preto
         }
-
         db.ref('localizacao_motoristas/' + motoristaId).set({
-            nome: dadosMotorista.nome,
-            placa: dadosMotorista.placa,
-            lat, lng, status: statusMapa
+            nome: dadosMotorista.nome, placa: dadosMotorista.placa, lat, lng, status: statusMapa
         });
     }
 
@@ -123,8 +145,7 @@
             btn.innerText = "FICAR ONLINE"; btn.className = "btn btn-yellow";
             txt.innerText = "LOGADO - OFFLINE (AMARELO)"; txt.style.color = "#ffcc00";
         }
-        // Atualiza cor no mapa imediatamente
-        navigator.geolocation.getCurrentPosition(pos => atualizarLocalizacaoNoBanco(pos.coords.latitude, pos.coords.longitude));
+        enviarPosicaoManual();
     }
 
     function ouvirCorridas() {
@@ -134,7 +155,7 @@
             for(let id in corridas) {
                 if(corridas[id].status === "pendente") {
                     idCorridaAtiva = id;
-                    document.getElementById('detalhes-chamada').innerHTML = `<b>De:</b> ${corridas[id].partida}<br><b>Para:</b> ${corridas[id].destino}`;
+                    document.getElementById('detalhes-chamada').innerHTML = `<b>Ponto:</b> ${corridas[id].partida}`;
                     document.getElementById('audioNotificacao').play();
                     mostrarTela('m-chamada');
                     break;
@@ -150,6 +171,7 @@
             status: "A caminho", motoristaId, motoristaNome: dadosMotorista.nome, motoristaPlaca: dadosMotorista.placa 
         });
         document.getElementById('titulo-viagem').innerText = "INDO BUSCAR (VERMELHO)";
+        enviarPosicaoManual();
         mostrarTela('m-viagem');
     }
 
@@ -159,13 +181,29 @@
         document.getElementById('titulo-viagem').innerText = "EM VIAGEM (PRETO)";
         document.getElementById('btn-proximo').style.display = "none";
         document.getElementById('btn-finalizar').style.display = "flex";
+        enviarPosicaoManual(); // Força a cor ficar PRETA no mapa
     }
 
     function finalizarCorrida() {
         db.ref('corridas_pendentes/' + idCorridaAtiva).update({ status: "Finalizada" }).then(() => {
             idCorridaAtiva = null;
+            etapaViagem = "buscar";
+            enviarPosicaoManual();
             mostrarTela('m-status');
         });
+    }
+
+    function enviarPosicaoManual() {
+        navigator.geolocation.getCurrentPosition(pos => atualizarLocalizacaoNoBanco(pos.coords.latitude, pos.coords.longitude));
+    }
+
+    function sairApp() {
+        if(confirm("Deseja sair do aplicativo?")) {
+            navigator.geolocation.clearWatch(watchID);
+            db.ref('localizacao_motoristas/' + motoristaId).remove().then(() => {
+                location.reload();
+            });
+        }
     }
 
     function verificarCorridaAtiva() {
@@ -175,6 +213,10 @@
                 if(corridas[id].motoristaId === motoristaId && corridas[id].status !== "Finalizada") {
                     idCorridaAtiva = id;
                     etapaViagem = (corridas[id].status === "Em Viagem") ? "levar" : "buscar";
+                    if(etapaViagem === "levar") {
+                        document.getElementById('btn-proximo').style.display = "none";
+                        document.getElementById('btn-finalizar').style.display = "flex";
+                    }
                     mostrarTela('m-viagem');
                     break;
                 }
