@@ -2,73 +2,89 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PINDAVAI - Passageiro</title>
-    
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
-    
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-
     <style>
-        :root { --pindavai: #ffcc00; --dark: #1a1a1a; }
-        body, html { margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; height: 100%; background: #f4f4f4; overflow: hidden; }
+        body, html { margin: 0; padding: 0; height: 100%; font-family: sans-serif; overflow: hidden; }
         .screen { display: none; height: 100vh; flex-direction: column; }
         .active { display: flex; }
-        #map { flex: 1; width: 100%; z-index: 1; }
-        .ride-panel { background: white; padding: 20px; border-radius: 25px 25px 0 0; box-shadow: 0 -5px 15px rgba(0,0,0,0.1); z-index: 1000; }
-        input { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
-        .btn-main { background: var(--pindavai); color: #000; border: none; width: 100%; padding: 15px; border-radius: 8px; font-weight: bold; cursor: pointer; }
-        #status-monitor { display: none; background: var(--dark); color: white; padding: 20px; border-radius: 20px 20px 0 0; position: fixed; bottom: 0; width: 100%; z-index: 2000; text-align: center; }
-        .car-icon-style { font-size: 24px; text-shadow: 0 0 5px rgba(0,0,0,0.5); transition: all 0.5s linear; }
+        #map { flex: 1; width: 100%; }
+        .panel { background: white; padding: 20px; border-radius: 20px 20px 0 0; box-shadow: 0 -5px 15px rgba(0,0,0,0.1); }
+        input { width:100%; padding:10px; margin:5px 0; box-sizing:border-box; border-radius:8px; border:1px solid #ccc; }
+        .btn { background: #ffcc00; border: none; padding: 15px; width: 100%; font-weight: bold; border-radius: 10px; cursor: pointer; }
+        .car-icon { font-size: 24px; transition: all 0.5s linear; }
     </style>
 </head>
 <body>
 
-    <div id="screen-login" class="screen active" style="align-items:center; justify-content:center;">
-        <div style="background:white; padding:30px; border-radius:20px; width:85%; max-width:350px; text-align:center;">
+    <div id="sc-login" class="screen active" style="justify-content:center; align-items:center; background:#eee;">
+        <div style="background:white; padding:30px; border-radius:20px; text-align:center; width:80%;">
             <h1>PINDAVAÍ</h1>
-            <input type="email" id="l-email" placeholder="E-mail">
-            <input type="password" id="l-senha" placeholder="Senha">
-            <button class="btn-main" onclick="acaoLogin()">ENTRAR</button>
+            <input type="email" id="p-email" placeholder="E-mail">
+            <input type="password" id="p-senha" placeholder="Senha">
+            <button class="btn" onclick="login()">ENTRAR</button>
+            <p onclick="mostrarTela('sc-cadastro')" style="color:blue; cursor:pointer; margin-top:15px;">Criar nova conta</p>
         </div>
     </div>
 
-    <div id="screen-app" class="screen">
-        <div id="map"></div>
-        <div id="panel-request" class="ride-panel">
-            <input type="text" id="inp-partida" placeholder="📍 Local de partida">
-            <input type="text" id="inp-destino" placeholder="🏁 Destino Final">
-            <button class="btn-main" onclick="solicitarCorrida()">SOLICITAR PINDAVAÍ</button>
+    <div id="sc-cadastro" class="screen" style="justify-content:center; align-items:center; background:#eee;">
+        <div style="background:white; padding:30px; border-radius:20px; text-align:center; width:80%;">
+            <h3>Cadastro Passageiro</h3>
+            <input type="text" id="cad-nome" placeholder="Nome Completo">
+            <input type="email" id="cad-email" placeholder="E-mail">
+            <input type="password" id="cad-senha" placeholder="Senha">
+            <button class="btn" onclick="cadastrarPassageiro()">CADASTRAR</button>
+            <p onclick="mostrarTela('sc-login')" style="cursor:pointer; margin-top:15px;">Voltar</p>
         </div>
-        <div id="status-monitor">
-            <div id="status-msg">Procurando motoristas...</div>
-            <button class="btn-main" style="background:#dc3545; color:white; margin-top:10px;" onclick="cancelarCorrida()">CANCELAR</button>
+    </div>
+
+    <div id="sc-app" class="screen">
+        <div id="map"></div>
+        <div class="panel">
+            <input type="text" id="partida" placeholder="Local de partida">
+            <input type="text" id="destino" placeholder="Destino final">
+            <button class="btn" onclick="pedir()">PEDIR VIAGEM</button>
         </div>
     </div>
 
     <script>
-        const firebaseConfig = { databaseURL: "https://meuappmobilidade-a6f93-default-rtdb.firebaseio.com/" };
+        const firebaseConfig = { databaseURL: "https://meuappmobilidade-a6f93-default-rtdb.firebaseio.com" };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
-        let map, currentUser, idCorridaAtual;
-        let marcadoresMotoristas = {};
+        let map, currentUser, markers = {};
 
-        function acaoLogin() {
-            const email = document.getElementById('l-email').value;
-            const senha = document.getElementById('l-senha').value;
+        function mostrarTela(id) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+        }
+
+        function cadastrarPassageiro() {
+            const nome = document.getElementById('cad-nome').value;
+            const email = document.getElementById('cad-email').value;
+            const senha = document.getElementById('cad-senha').value;
+            db.ref('passageiros').push({ nome, email, senha, status: 'ativo', nota: 5.0 }).then(() => {
+                alert("Conta criada!"); mostrarTela('sc-login');
+            });
+        }
+
+        function login() {
+            const email = document.getElementById('p-email').value;
+            const senha = document.getElementById('p-senha').value;
             db.ref('passageiros').orderByChild('email').equalTo(email).once('value', snap => {
                 if(snap.exists()){
-                    const id = Object.keys(snap.val())[0];
-                    currentUser = snap.val()[id];
-                    document.getElementById('screen-login').classList.remove('active');
-                    document.getElementById('screen-app').classList.add('active');
-                    initMap();
-                    monitorarMotoristasNoMapa(); 
-                    verificarCorridaAtiva();
+                    let id = Object.keys(snap.val())[0];
+                    let user = snap.val()[id];
+                    if(user.senha === senha) {
+                        currentUser = user;
+                        mostrarTela('sc-app');
+                        initMap();
+                    } else alert("Senha errada");
                 }
             });
         }
@@ -76,81 +92,39 @@
         function initMap() {
             map = L.map('map').setView([-22.9255, -45.4548], 14);
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-        }
-
-        // --- LÓGICA DAS 4 CORES NO MAPA ---
-        function monitorarMotoristasNoMapa() {
+            
             db.ref('localizacao_motoristas').on('value', snap => {
                 const motoristas = snap.val();
-                
-                // Remove motoristas deslogados (que sumiram do banco)
-                for (let id in marcadoresMotoristas) {
-                    if (!motoristas || !motoristas[id]) {
-                        map.removeLayer(marcadoresMotoristas[id]);
-                        delete marcadoresMotoristas[id];
-                    }
-                }
-
-                for (let id in motoristas) {
+                for(let id in markers) { if(!motoristas || !motoristas[id]) { map.removeLayer(markers[id]); delete markers[id]; } }
+                for(let id in motoristas) {
                     const m = motoristas[id];
-                    let cor = "#ffcc00"; // Padrão: Amarelo (Logado/Offline)
+                    let cor = "#ffcc00"; // Amarelo
+                    if(m.status === "disponivel") cor = "#28a745"; // Verde
+                    if(m.status === "a_caminho") cor = "#dc3545"; // Vermelho
+                    if(m.status === "em_viagem") cor = "#000000"; // Preto
 
-                    if (m.status === "disponivel") cor = "#28a745";    // Verde
-                    if (m.status === "a_caminho") cor = "#dc3545";     // Vermelho
-                    if (m.status === "em_viagem") cor = "#000000";     // Preto
-
-                    if (marcadoresMotoristas[id]) {
-                        marcadoresMotoristas[id].setLatLng([m.lat, m.lng]);
-                        const el = marcadoresMotoristas[id].getElement();
-                        if(el) el.querySelector('i').style.color = cor;
+                    if(markers[id]) {
+                        markers[id].setLatLng([m.lat, m.lng]);
+                        markers[id].getElement().querySelector('i').style.color = cor;
                     } else {
                         const icon = L.divIcon({
-                            html: `<i class="fas fa-car car-icon-style" style="color: ${cor}"></i>`,
-                            className: 'dummy', iconSize: [30, 30], iconAnchor: [15, 15]
+                            html: `<i class="fas fa-car car-icon" style="color:${cor}"></i>`,
+                            className: 'dummy', iconSize:[30,30]
                         });
-                        marcadoresMotoristas[id] = L.marker([m.lat, m.lng], { icon: icon }).addTo(map);
+                        markers[id] = L.marker([m.lat, m.lng], {icon}).addTo(map);
                     }
                 }
             });
         }
 
-        function solicitarCorrida() {
-            const partida = document.getElementById('inp-partida').value;
-            const destino = document.getElementById('inp-destino').value;
-            const ref = db.ref('corridas_pendentes').push({
+        function pedir() {
+            db.ref('corridas_pendentes').push({
                 passageiroNome: currentUser.nome,
-                partida, destino, status: "pendente"
+                partida: document.getElementById('partida').value,
+                destino: document.getElementById('destino').value,
+                status: "pendente"
             });
-            idCorridaAtual = ref.key;
-            document.getElementById('panel-request').style.display = "none";
-            document.getElementById('status-monitor').style.display = "block";
-            monitorarCorrida();
-        }
-
-        function monitorarCorrida() {
-            db.ref('corridas_pendentes/' + idCorridaAtual).on('value', snap => {
-                const c = snap.val();
-                if(!c) return;
-                const msg = document.getElementById('status-msg');
-                if(c.status === "A caminho") msg.innerText = "Motorista Vermelho vindo buscar você!";
-                if(c.status === "Em Viagem") msg.innerText = "Em viagem (Carro Preto no mapa)";
-                if(c.status === "Finalizada") location.reload();
-            });
-        }
-
-        function verificarCorridaAtiva() {
-            db.ref('corridas_pendentes').once('value', snap => {
-                const dados = snap.val();
-                for(let id in dados) {
-                    if(dados[id].passageiroNome === currentUser.nome && dados[id].status !== "Finalizada") {
-                        idCorridaAtual = id;
-                        document.getElementById('panel-request').style.display = "none";
-                        document.getElementById('status-monitor').style.display = "block";
-                        monitorarCorrida();
-                        break;
-                    }
-                }
-            });
+            alert("Chamada enviada!");
         }
     </script>
 </body>
