@@ -18,13 +18,13 @@
         .auth-card { width: 100%; max-width: 350px; text-align: center; }
         input, select { width: 100%; padding: 15px; margin: 8px 0; border: 1px solid #ddd; border-radius: 10px; box-sizing: border-box; font-size: 16px; background: white; }
         .btn { background: var(--pindavai); border: none; padding: 16px; width: 100%; font-weight: bold; border-radius: 10px; cursor: pointer; font-size: 16px; margin-top: 10px; }
-        
-        /* NOVO: Estilo para o Box de Valor */
-        .box-valor { background: #fff9db; color: #856404; padding: 12px; border-radius: 10px; margin: 10px 0; font-weight: bold; text-align: center; border: 1px dashed #ffeeba; display: none; }
-
         .btn-link { color: #1a73e8; background: none; border: none; margin-top: 15px; cursor: pointer; font-weight: bold; }
         #map { flex: 1; width: 100%; }
         .panel-request { background: white; padding: 20px; border-radius: 25px 25px 0 0; box-shadow: 0 -5px 15px rgba(0,0,0,0.1); position: relative; z-index: 1000; }
+        
+        /* Box de Preço Estimado */
+        .box-valor { background: #fff9db; color: #856404; padding: 12px; border-radius: 10px; margin: 10px 0; font-weight: bold; text-align: center; border: 1px dashed #ffeeba; display: none; }
+
         #status-monitor { display: none; position: fixed; bottom: 0; left: 0; right: 0; background: white; padding: 25px; border-radius: 25px 25px 0 0; z-index: 2000; box-shadow: 0 -5px 20px rgba(0,0,0,0.2); text-align: center; }
         .info-motorista { background: #f8f9fa; padding: 15px; border-radius: 12px; margin-top: 15px; display: none; text-align: left; border: 1px solid #eee; }
         .btn-cancelar { background: #fce8e8; color: var(--danger); border: 2px solid var(--danger); margin-top: 15px; width: 100%; padding: 12px; border-radius: 10px; font-weight: bold; cursor: pointer;}
@@ -84,7 +84,6 @@
             <div id="info-motorista-box" class="info-motorista">
                 <p><b>Motorista:</b> <span id="txt-nome-mot">---</span></p>
                 <p><b>Placa:</b> <span id="txt-placa-mot" style="background:#333; color:#fff; padding:2px 6px; border-radius:4px;">---</span></p>
-                <p><b>Valor da Viagem:</b> <span id="txt-valor-mot">---</span></p>
             </div>
             <button id="btn-cancelar-corrida" class="btn-cancelar" onclick="cancelarCorrida()">CANCELAR CORRIDA</button>
         </div>
@@ -96,7 +95,7 @@
         const db = firebase.database();
         let map, currentUser, markers = {}, idCorridaAtual = null, tarifas = {};
 
-        // 1. CARREGA TARIFAS DA CENTRAL MASTER
+        // Carregar Tarifas da Central Master
         db.ref('configuracoes/tarifas').on('value', snap => {
             tarifas = snap.val();
         });
@@ -106,27 +105,34 @@
             document.getElementById(id).classList.add('active');
         }
 
-        // 2. FUNÇÃO DE CÁLCULO INTEGRADA (RESPEITANDO AS FAIXAS)
+        // Função "Tradutora" para converter vírgula brasileira em ponto decimal
+        function limparValor(v) {
+            if(!v) return 0;
+            return parseFloat(v.toString().replace(',', '.')) || 0;
+        }
+
         function estimarPreco() {
             if (!tarifas) return;
             
-            let kmDistancia = 55; // Simulando KM (integração futura com rota)
+            let kmDistancia = 55; // KM de teste - mude para testar as faixas
             let tempoMinutos = 15;
 
-            let vBase = parseFloat(tarifas.base) || 0;
-            let vMin = parseFloat(tarifas.minuto) || 0;
-            let vKm = parseFloat(tarifas.km) || 0;
+            let vBase = limparValor(tarifas.base);
+            let vMin  = limparValor(tarifas.minuto);
+            let vKm   = limparValor(tarifas.km);
 
-            // Lógica de faixas de longa distância
-            if (kmDistancia >= 150) vKm = parseFloat(tarifas.km_100_a_500) || vKm;
-            else if (kmDistancia >= 100) vKm = parseFloat(tarifas.km_50_a_100) || vKm;
-            else if (kmDistancia >= 50) vKm = parseFloat(tarifas.km_ate_50) || vKm;
+            // Regra das Faixas de Distância
+            if (kmDistancia >= 150) vKm = limparValor(tarifas.km_150_a_500);
+            else if (kmDistancia >= 100) vKm = limparValor(tarifas.km_100_a_150);
+            else if (kmDistancia >= 50) vKm = limparValor(tarifas.km_50_a_100);
+            else vKm = limparValor(tarifas.km_ate_50);
 
             let total = vBase + (kmDistancia * vKm) + (tempoMinutos * vMin);
             
+            let valorFormatado = total.toLocaleString('pt-br', { style: 'currency', currency: 'BRL' });
             document.getElementById('box-valor').style.display = "block";
-            document.getElementById('txt-preco').innerText = total.toLocaleString('pt-br',{style: 'currency', currency: 'BRL'});
-            return total.toLocaleString('pt-br',{style: 'currency', currency: 'BRL'});
+            document.getElementById('txt-preco').innerText = valorFormatado;
+            return valorFormatado;
         }
 
         function fazerLogin() {
@@ -189,7 +195,7 @@
                 pagamento: document.getElementById('pagamento').value,
                 valorEstimado: document.getElementById('txt-preco').innerText,
                 status: "pendente",
-                timestamp: Date.now() // NOVO: Para regra dos 3 min
+                timestamp: Date.now() // Importante para o cronômetro de cancelamento
             };
             if(!novaCorrida.partida || !novaCorrida.destino) return alert("Preencha origem e destino!");
 
@@ -211,7 +217,7 @@
                     document.getElementById('info-motorista-box').style.display = "block";
                     document.getElementById('txt-nome-mot').innerText = c.motoristaNome;
                     document.getElementById('txt-placa-mot').innerText = c.motoristaPlaca;
-                    document.getElementById('txt-valor-mot').innerText = c.valorEstimado;
+                    document.getElementById('btn-cancelar-corrida').style.display = "none"; // Desabilita cancelamento após aceite
                 } else if(c.status === "Em Viagem") {
                     msg.innerText = "VOCÊ ESTÁ EM VIAGEM";
                 } else if(c.status === "Finalizada") { 
@@ -223,18 +229,25 @@
 
         function cancelarCorrida() {
             db.ref('corridas_pendentes/' + idCorridaAtual).once('value', snap => {
-                const d = snap.val();
+                const dados = snap.val();
                 const agora = Date.now();
-                const diff = (agora - d.timestamp) / 1000 / 60; // diff em minutos
+                const minutosPassados = (agora - dados.timestamp) / 1000 / 60;
 
-                let aviso = "Deseja cancelar?";
-                if(diff > 3) aviso = `Já se passaram 3 min. Será cobrada taxa de ${parseFloat(tarifas.cancelamento).toLocaleString('pt-br',{style:'currency', currency:'BRL'})}. Confirmar?`;
+                let valorTaxa = 0;
+                let mensagem = "Deseja realmente cancelar sua corrida?";
 
-                if(confirm(aviso)) {
+                if (minutosPassados > 3) {
+                    valorTaxa = limparValor(tarifas.cancelamento);
+                    mensagem = `Já se passaram mais de 3 minutos. Será cobrada uma taxa de cancelamento de ${valorTaxa.toLocaleString('pt-br',{style:'currency', currency:'BRL'})}. Confirmar?`;
+                }
+
+                if (confirm(mensagem)) {
                     db.ref('corridas_pendentes/' + idCorridaAtual).update({ 
                         status: "Cancelada",
-                        taxaAplicada: diff > 3 ? tarifas.cancelamento : 0
-                    }).then(() => location.reload());
+                        taxaAplicada: valorTaxa 
+                    }).then(() => {
+                        location.reload();
+                    });
                 }
             });
         }
